@@ -149,3 +149,99 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: Spacing.half },
   empty: { textAlign: 'center', marginTop: Spacing.four },
 });
+
+/** Izbira več elementov (npr. konji termina) — potrdi se z »Končano«. */
+export function MultiPickerSheet<T extends string | number>({
+  title,
+  items,
+  initial,
+  onDone,
+  onClose,
+  hint,
+}: {
+  title: string;
+  items: PickerItem<T>[];
+  initial: T[];
+  onDone: (values: T[]) => void;
+  onClose: () => void;
+  hint?: string;
+}) {
+  const theme = useTheme();
+  const [query, setQuery] = useState('');
+  const [values, setValues] = useState<T[]>(initial);
+
+  const q = query.trim().toLowerCase();
+  const visible = q ? items.filter((i) => i.label.toLowerCase().includes(q)) : items;
+
+  function toggle(value: T) {
+    setValues((current) => (current.includes(value) ? current.filter((v) => v !== value) : [...current, value]));
+  }
+
+  return (
+    <Modal
+      visible
+      animationType="slide"
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={onClose}>
+      <ThemedView style={styles.flex}>
+        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
+          <View style={styles.header}>
+            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button">
+              <ThemedText type="linkPrimary">Prekliči</ThemedText>
+            </Pressable>
+            <ThemedText type="smallBold" style={[styles.title, { textAlign: 'center' }]}>
+              {title}
+            </ThemedText>
+            <Pressable onPress={() => onDone(values)} hitSlop={12} accessibilityRole="button">
+              <ThemedText type="linkPrimary" style={{ fontWeight: 700 }}>
+                Končano
+              </ThemedText>
+            </Pressable>
+          </View>
+          <View style={styles.searchWrap}>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Išči…"
+              placeholderTextColor={theme.textSecondary}
+              autoCorrect={false}
+              style={[styles.search, { color: theme.text, backgroundColor: theme.backgroundElement }]}
+            />
+            <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.one }}>
+              Izbranih: {values.length}
+              {hint ? ` · ${hint}` : ''}
+            </ThemedText>
+          </View>
+          <FlatList
+            data={visible}
+            keyExtractor={(item) => String(item.value)}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.list}
+            renderItem={({ item }) => {
+              const on = values.includes(item.value);
+              return (
+                <Pressable
+                  onPress={() => toggle(item.value)}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  style={[styles.row, { borderBottomColor: theme.backgroundSelected }]}>
+                  <View style={styles.rowText}>
+                    <ThemedText style={on && { color: theme.primary }}>{item.label}</ThemedText>
+                    {item.note && (
+                      <ThemedText type="small" themeColor="textSecondary">
+                        {item.note}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <ThemedText style={{ color: on ? theme.primary : theme.textSecondary, fontSize: 20 }}>
+                    {on ? '☑' : '☐'}
+                  </ThemedText>
+                </Pressable>
+              );
+            }}
+          />
+        </SafeAreaView>
+      </ThemedView>
+    </Modal>
+  );
+}

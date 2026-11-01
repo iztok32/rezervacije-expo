@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 
 import { DayHorsesSheet } from '@/components/day-horses-sheet';
+import { NotifySheet } from '@/components/notify-sheet';
 import { OfflineBanner } from '@/components/offline-banner';
 import { CenteredState, ScreenHeader, screenStyles, useContentPadding } from '@/components/screen';
 import { SlotSheet } from '@/components/slot-sheet';
@@ -23,6 +24,7 @@ export default function CalendarScreen() {
   const [selected, setSelected] = useState(start);
   const [openSlotId, setOpenSlotId] = useState<number | null>(null);
   const [dayHorsesOpen, setDayHorsesOpen] = useState(false);
+  const [dayNotifyOpen, setDayNotifyOpen] = useState(false);
   const end = toDateString(addDays(parseDate(start), RANGE_DAYS - 1));
 
   // Termini so na voljo samo s povezavo; brez nje aplikacija pokaže le lastne rezervacije
@@ -39,6 +41,8 @@ export default function CalendarScreen() {
   const day = data?.days.find((d) => d.date === selected);
   // Odprti termin beremo iz zadnjih podatkov, da podokno po akciji pokaže novo stanje
   const openSlot = day?.slots.find((s) => s.appointment_id === openSlotId) ?? null;
+  // Število rezervacij dneva (za »Konji za dan« in obvestilo vsem na ta dan)
+  const dayBooked = day?.slots.reduce((n, s) => n + s.booked, 0) ?? 0;
 
   return (
     <ThemedView style={styles.container}>
@@ -88,12 +92,21 @@ export default function CalendarScreen() {
                 {formatDate(selected, { weekday: 'long', day: 'numeric', month: 'long' })}
                 {day?.holiday ? ` · ${day.holiday}` : ''}
               </ThemedText>
-              {data?.capabilities?.assign_horses && day?.slots.some((s) => s.participants.length > 0) && (
-                <Pressable onPress={() => setDayHorsesOpen(true)} hitSlop={8} accessibilityRole="button">
-                  <ThemedText type="linkPrimary">Konji za dan ›</ThemedText>
-                </Pressable>
-              )}
             </View>
+            {dayBooked > 0 && (data?.capabilities?.assign_horses || data?.capabilities?.notify_day) && (
+              <View style={styles.dayActions}>
+                {data?.capabilities?.assign_horses && (
+                  <Pressable onPress={() => setDayHorsesOpen(true)} hitSlop={8} accessibilityRole="button">
+                    <ThemedText type="linkPrimary">Konji za dan ›</ThemedText>
+                  </Pressable>
+                )}
+                {data?.capabilities?.notify_day && (
+                  <Pressable onPress={() => setDayNotifyOpen(true)} hitSlop={8} accessibilityRole="button">
+                    <ThemedText type="linkPrimary">✉ Obvesti dan ›</ThemedText>
+                  </Pressable>
+                )}
+              </View>
+            )}
 
             {loading || error || !day || day.slots.length === 0 ? (
               <CenteredState
@@ -126,6 +139,14 @@ export default function CalendarScreen() {
 
       {dayHorsesOpen && day && data && (
         <DayHorsesSheet day={day} calendar={data} onClose={() => setDayHorsesOpen(false)} />
+      )}
+
+      {dayNotifyOpen && day && (
+        <NotifySheet
+          target={{ kind: 'day', date: day.date, recipients: dayBooked }}
+          channels={data?.capabilities?.notify_channels ?? ['portal']}
+          onClose={() => setDayNotifyOpen(false)}
+        />
       )}
     </ThemedView>
   );
@@ -239,6 +260,7 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, marginTop: Spacing.half },
   flex: { flex: 1 },
   dayTitle: { marginTop: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  dayActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.four },
   slotRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
   slotName: { flex: 1 },
   bar: { height: 6, borderRadius: 3, overflow: 'hidden', marginVertical: Spacing.one },

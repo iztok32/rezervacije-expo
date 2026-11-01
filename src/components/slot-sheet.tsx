@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
+import { NotifySheet } from '@/components/notify-sheet';
 import { SlotAdmin } from '@/components/slot-admin';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -47,6 +48,7 @@ export function SlotSheet({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [notifyOpen, setNotifyOpen] = useState(false);
   // Po uspešni akciji do prihoda svežih podatkov (nov objekt slot) ne ponujamo starih gumbov
   const [staleSlot, setStaleSlot] = useState<OccupancySlot | null>(null);
   const syncing = staleSlot === slot;
@@ -349,8 +351,18 @@ export function SlotSheet({
             )}
 
             {/* ── Upravljanje (admin, učitelj): udeleženci z akcijami, rezervacija za člana, čakalna vrsta ── */}
+            {slot.can_notify && (
+              <Button title="✉ Obvesti udeležence termina" variant="secondary" onPress={() => setNotifyOpen(true)} disabled={!isOnline} />
+            )}
             {calendar.capabilities?.reserve_for_others && !syncing && (
               <SlotAdmin slot={slot} date={date} calendar={calendar} busy={busy} run={run} />
+            )}
+            {notifyOpen && (
+              <NotifySheet
+                target={{ kind: 'slot', appointmentId: slot.appointment_id, name: slot.name, date, recipients: slot.booked }}
+                channels={calendar.capabilities?.notify_channels ?? ['portal']}
+                onClose={() => setNotifyOpen(false)}
+              />
             )}
 
             {/* ── Udeleženci ── */}

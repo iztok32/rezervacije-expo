@@ -14,6 +14,12 @@ export type User = {
     // Upravljanje rezervacij (admin, učitelj)
     reserve_for_others?: boolean;
     adding_backwards?: boolean;
+    // Meni »Upravljanje«
+    appointments_view?: boolean;
+    coupons_view_all?: boolean;
+    coupon_types_view?: boolean;
+    users_view?: boolean;
+    settings_edit?: boolean;
   };
 };
 
@@ -87,6 +93,7 @@ export type OccupancySlot = {
   participants: Participant[];
   can_reserve_for_others: boolean;
   can_add_to_waiting_list: boolean;
+  can_notify?: boolean;
   horses_selectable: boolean;
   horse_ids: number[]; // prazno = vsi aktivni konji
   booked_horse_ids: number[];
@@ -119,10 +126,125 @@ export type OccupancyResponse = {
     assign_horses: boolean;
     manage_waiting_list: boolean;
     adding_backwards: boolean;
+    notify_day?: boolean;
+    notify_channels?: NotifyChannel[];
   };
   limits: {
     min_days_in_advance: number;
     max_days_in_advance: number | null;
     cancellation_days: number | null;
   };
+};
+
+// ── Upravljanje ──────────────────────────────────────────────────────────
+
+export type NotifyChannel = 'portal' | 'email' | 'sms';
+
+export type AppointmentDays = {
+  day_monday: boolean;
+  day_tuesday: boolean;
+  day_wednesday: boolean;
+  day_thursday: boolean;
+  day_friday: boolean;
+  day_saturday: boolean;
+  day_sunday: boolean;
+};
+
+export type Appointment = AppointmentDays & {
+  id: number;
+  name: string;
+  valid_from: string | null;
+  valid_to: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  capacity: number | null;
+  type: number | null;
+  chained_after_appointment_id: number | null;
+  chained_next_appointment_id: number | null;
+  display_order: number;
+  is_active: boolean;
+  horse_ids: number[];
+  teacher_ids: number[];
+};
+
+export type Can = { create: boolean; edit: boolean; delete: boolean };
+
+export type AppointmentsResponse = {
+  data: Appointment[];
+  horses: { id: number; name: string }[];
+  teachers: { id: number; name: string }[];
+  types: { id: number; name: string; horses_selectable: boolean; coupon_type_id: number | null }[];
+  can: Can;
+};
+
+export type AppointmentType = {
+  id: number;
+  name: string;
+  is_active: boolean;
+  horses_selectable: boolean;
+  coupon_type_id: number | null;
+  display_order: number;
+  deleted: boolean;
+};
+
+export type AppointmentTypesResponse = {
+  data: AppointmentType[];
+  coupon_types: { id: number; name: string }[];
+  can: Can;
+};
+
+export type CouponEntry = {
+  id: number;
+  user: { id: number; name: string } | null;
+  coupon_type: { id: number; name: string } | null;
+  quantity: number;
+  transaction_type: 'purchase' | 'usage';
+  created_at: string | null;
+  reservation: { id: number; date: string | null; appointment: string | null } | null;
+};
+
+export type CouponsResponse = {
+  data: CouponEntry[];
+  meta: { current_page: number; last_page: number; total: number };
+  coupon_types: { id: number; name: string }[];
+  can: { view_all: boolean; create: boolean; delete: boolean };
+};
+
+export type CouponType = { id: number; name: string; price: number; is_active: boolean; deleted: boolean };
+
+export type CouponPackage = {
+  id: number;
+  coupon_type_id: number;
+  coupon_type: string | null;
+  name: string;
+  quantity: number;
+  price: number;
+  is_active: boolean;
+  deleted: boolean;
+};
+
+export type CouponTypesResponse = { types: CouponType[]; packages: CouponPackage[]; can: Can };
+
+export type ReservationSettings = {
+  min_days_in_advance: number;
+  max_days_in_advance: number;
+  cancellation_days: number;
+  default_admin_ids: number[];
+  admin_users: { id: number; name: string }[];
+};
+
+export type MemberDetailResponse = {
+  data: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string | null;
+    is_active: boolean;
+    appointment_type_ids: number[];
+    coupon_balances: Record<string, number>;
+    upcoming_reservations: number;
+  };
+  appointment_types: { id: number; name: string }[];
+  coupon_types: { id: number; name: string }[];
+  can: { edit: boolean; create_coupons: boolean };
 };

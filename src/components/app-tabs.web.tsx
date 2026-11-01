@@ -9,11 +9,16 @@ import {
 import { Pressable, View, StyleSheet } from 'react-native';
 
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { manageItems } from '@/lib/manage-menu';
+import { useSession } from '@/lib/session';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
 export default function AppTabs() {
+  const { user } = useSession();
+  const canManage = manageItems(user).length > 0;
+
   return (
     <Tabs>
       <TabSlot style={{ height: '100%' }} />
@@ -25,6 +30,11 @@ export default function AppTabs() {
           <TabTrigger name="calendar" href="/calendar" asChild>
             <TabButton>Termini</TabButton>
           </TabTrigger>
+          {canManage && (
+            <TabTrigger name="manage" href="/manage" asChild>
+              <TabButton>Upravljanje</TabButton>
+            </TabTrigger>
+          )}
         </CustomTabList>
       </TabList>
     </Tabs>
