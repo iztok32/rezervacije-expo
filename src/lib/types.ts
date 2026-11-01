@@ -17,9 +17,7 @@ export type User = {
     // Meni »Upravljanje«
     appointments_view?: boolean;
     coupons_view_all?: boolean;
-    coupon_types_view?: boolean;
     users_view?: boolean;
-    settings_edit?: boolean;
   };
 };
 
@@ -177,28 +175,13 @@ export type AppointmentsResponse = {
   can: Can;
 };
 
-export type AppointmentType = {
-  id: number;
-  name: string;
-  is_active: boolean;
-  horses_selectable: boolean;
-  coupon_type_id: number | null;
-  display_order: number;
-  deleted: boolean;
-};
-
-export type AppointmentTypesResponse = {
-  data: AppointmentType[];
-  coupon_types: { id: number; name: string }[];
-  can: Can;
-};
-
 export type CouponEntry = {
   id: number;
   user: { id: number; name: string } | null;
   coupon_type: { id: number; name: string } | null;
   quantity: number;
   transaction_type: 'purchase' | 'usage';
+  notes: string | null;
   created_at: string | null;
   reservation: { id: number; date: string | null; appointment: string | null } | null;
 };
@@ -208,29 +191,6 @@ export type CouponsResponse = {
   meta: { current_page: number; last_page: number; total: number };
   coupon_types: { id: number; name: string }[];
   can: { view_all: boolean; create: boolean; delete: boolean };
-};
-
-export type CouponType = { id: number; name: string; price: number; is_active: boolean; deleted: boolean };
-
-export type CouponPackage = {
-  id: number;
-  coupon_type_id: number;
-  coupon_type: string | null;
-  name: string;
-  quantity: number;
-  price: number;
-  is_active: boolean;
-  deleted: boolean;
-};
-
-export type CouponTypesResponse = { types: CouponType[]; packages: CouponPackage[]; can: Can };
-
-export type ReservationSettings = {
-  min_days_in_advance: number;
-  max_days_in_advance: number;
-  cancellation_days: number;
-  default_admin_ids: number[];
-  admin_users: { id: number; name: string }[];
 };
 
 export type MemberDetailResponse = {

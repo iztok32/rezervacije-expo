@@ -118,6 +118,7 @@ export default function CouponsScreen() {
                         {c.reservation.date ? `, ${formatDate(c.reservation.date, { day: 'numeric', month: 'numeric', year: 'numeric' })}` : ''}
                       </ThemedText>
                     )}
+                    {c.notes && <ThemedText type="small">Opomba: {c.notes}</ThemedText>}
                   </View>
                   <View style={styles.right}>
                     <ThemedText type="smallBold" style={{ color: purchase ? theme.success : theme.danger }}>
@@ -181,6 +182,7 @@ function EntryForm({
   const [couponTypeId, setCouponTypeId] = useState<number | null>(couponTypes[0]?.id ?? null);
   const [kind, setKind] = useState<'purchase' | 'usage'>('purchase');
   const [quantity, setQuantity] = useState('1');
+  const [notes, setNotes] = useState('');
   const [picker, setPicker] = useState<'member' | 'type' | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
@@ -190,7 +192,13 @@ function EntryForm({
     setBusy(true);
     setErrors({});
     try {
-      await api.post('/coupons', { user_id: member?.id, coupon_type_id: couponTypeId, quantity: Number(quantity), transaction_type: kind });
+      await api.post('/coupons', {
+        user_id: member?.id,
+        coupon_type_id: couponTypeId,
+        quantity: Number(quantity),
+        transaction_type: kind,
+        notes: notes.trim() || null,
+      });
       onSaved(`${member?.name}: ${kind === 'purchase' ? 'dodano' : 'odšteto'} ${quantity} × »${couponTypes.find((c) => c.id === couponTypeId)?.name}«.`);
     } catch (e) {
       setErrors({ ...fieldErrors(e), _: errorMessage(e) });
@@ -231,6 +239,15 @@ function EntryForm({
           ))}
         </View>
         <TextField label="Količina" value={quantity} onChangeText={setQuantity} keyboardType="number-pad" error={errors.quantity} />
+        <TextField
+          label="Opomba (neobvezno)"
+          value={notes}
+          onChangeText={setNotes}
+          multiline
+          placeholder="npr. plačano z gotovino"
+          hint={`${notes.length} / 500`}
+          error={errors.notes}
+        />
       </FormCard>
       <Button
         title="Shrani vnos"
