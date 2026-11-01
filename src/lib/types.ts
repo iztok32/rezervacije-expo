@@ -1,0 +1,128 @@
+// Oblike odgovorov Laravel API-ja (kk-karlo-bb, routes/api.php).
+
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  is_admin: boolean;
+  // Kaj aplikacija pokaže — strežnik pravice vseeno preveri pri vsakem klicu
+  permissions: {
+    reservations_view: boolean;
+    reservations_create: boolean;
+    reservations_delete: boolean;
+    purchase_view: boolean;
+    // Upravljanje rezervacij (admin, učitelj)
+    reserve_for_others?: boolean;
+    adding_backwards?: boolean;
+  };
+};
+
+/** Član za rezervacijo v imenu drugega (GET /members). */
+export type Member = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string | null;
+  coupon_balances: Record<string, number>;
+};
+
+export type Participant = {
+  name: string;
+  horse: string | null;
+  is_me: boolean;
+  // Samo za upravljavce (admin, učitelj)
+  reservation_id?: number;
+  user_id?: number;
+  horse_id?: number | null;
+  notes?: string | null;
+  created_by?: string | null;
+  can_cancel?: boolean;
+};
+
+export type LoginResponse = {
+  token: string;
+  user: User;
+};
+
+export type Reservation = {
+  id: number;
+  date: string; // Y-m-d
+  notes: string | null;
+  appointment: {
+    id: number;
+    name: string;
+    start_time: string | null; // HH:mm
+    end_time: string | null;
+  } | null;
+  horse: { id: number; name: string } | null;
+  can_cancel: boolean;
+  late_cancellation_requested: boolean;
+};
+
+export type OccupancySlot = {
+  appointment_id: number;
+  name: string;
+  type: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  capacity: number | null;
+  booked: number;
+  available: number | null;
+  is_full: boolean;
+  is_mine: boolean;
+  my_reservation_id: number | null;
+  my_reservation: {
+    id: number;
+    horse: string | null;
+    notes: string | null;
+    can_cancel: boolean;
+    late_cancellation_requested: boolean;
+  } | null;
+  chained_after_appointment_id: number | null;
+  is_open: boolean;
+  can_reserve: boolean;
+  // Razlog, zakaj prijava ni mogoča (roki, termin se je začel, zaklenjena veriga)
+  restriction: string | null;
+  chain_free_appointment: { id: number; name: string } | null;
+  participants: Participant[];
+  can_reserve_for_others: boolean;
+  can_add_to_waiting_list: boolean;
+  horses_selectable: boolean;
+  horse_ids: number[]; // prazno = vsi aktivni konji
+  booked_horse_ids: number[];
+  coupon_type: { id: number; name: string } | null;
+  waiting_list: {
+    count: number;
+    entry_id: number | null;
+    position: number | null;
+    status: 'waiting' | 'notified' | null;
+    can_join: boolean;
+    // Samo admin: imena v vrsti
+    entries?: { id: number; user_id: number; name: string; status: 'waiting' | 'notified'; position: number }[];
+  };
+};
+
+export type OccupancyDay = {
+  date: string;
+  holiday: string | null;
+  slots: OccupancySlot[];
+};
+
+export type OccupancyResponse = {
+  start: string;
+  end: string;
+  days: OccupancyDay[];
+  horses: { id: number; name: string }[];
+  coupon_balances: Record<string, number>;
+  capabilities?: {
+    reserve_for_others: boolean;
+    assign_horses: boolean;
+    manage_waiting_list: boolean;
+    adding_backwards: boolean;
+  };
+  limits: {
+    min_days_in_advance: number;
+    max_days_in_advance: number | null;
+    cancellation_days: number | null;
+  };
+};
