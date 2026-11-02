@@ -4,10 +4,12 @@ import { FlatList, Pressable, RefreshControl, StyleSheet, View } from 'react-nat
 import { Button } from '@/components/button';
 import { OfflineBanner } from '@/components/offline-banner';
 import { CenteredState, ScreenHeader, screenStyles, useContentPadding } from '@/components/screen';
+import { ThemeSwitch } from '@/components/theme-switch';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { Radius, Spacing } from '@/constants/theme';
 import { useMyReservations } from '@/hooks/use-my-reservations';
+import { useTheme } from '@/hooks/use-theme';
 import { api, errorMessage } from '@/lib/api';
 import { useConnectivity } from '@/lib/connectivity';
 import { emitDataChanged } from '@/lib/data-version';
@@ -52,11 +54,14 @@ export default function MyReservationsScreen() {
           />
         }
         ListFooterComponent={
-          user ? (
-            <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
-              Uporabnik: {user.name}
-            </ThemedText>
-          ) : undefined
+          <View style={styles.footerBox}>
+            <ThemeSwitch />
+            {user && (
+              <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
+                Uporabnik: {user.name}
+              </ThemedText>
+            )}
+          </View>
         }
         renderItem={({ item }) => <ReservationCard reservation={item} />}
       />
@@ -67,6 +72,7 @@ export default function MyReservationsScreen() {
 function ReservationCard({ reservation: r }: { reservation: Reservation }) {
   const { user } = useSession();
   const { isOnline } = useConnectivity();
+  const theme = useTheme();
   const [busy, setBusy] = useState(false);
   const title = r.appointment?.name ?? 'Termin';
   const when = formatDate(r.date, { weekday: 'long', day: 'numeric', month: 'long' });
@@ -102,23 +108,33 @@ function ReservationCard({ reservation: r }: { reservation: Reservation }) {
   return (
     <ThemedView type="backgroundElement" style={[screenStyles.card, styles.card]}>
       <View style={styles.row}>
-        <View style={styles.dateBox}>
-          <ThemedText type="smallBold" themeColor="textSecondary">
-            {formatDate(r.date, { weekday: 'short' }).toUpperCase()}
+        {/* Datum kot na vstopnici: dan v tednu, številka dneva, mesec */}
+        <View style={[styles.dateBox, { backgroundColor: theme.primarySoft }]}>
+          <ThemedText type="overline" style={styles.dateWeekday}>
+            {formatDate(r.date, { weekday: 'short' }).replace('.', '')}
           </ThemedText>
-          <ThemedText type="smallBold">{formatDate(r.date, { day: 'numeric', month: 'numeric' })}</ThemedText>
+          <ThemedText style={[styles.dateDay, { color: theme.primary }]}>{formatDate(r.date, { day: 'numeric' }).replace('.', '')}</ThemedText>
+          <ThemedText type="small" themeColor="textSecondary" style={styles.dateMonth}>
+            {formatDate(r.date, { month: 'short' }).replace('.', '')}
+          </ThemedText>
         </View>
         <View style={styles.details}>
-          <ThemedText type="smallBold">{title}</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            {[
-              formatTimeRange(r.appointment?.start_time ?? null, r.appointment?.end_time ?? null),
-              r.horse && `Konj: ${r.horse.name}`,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
+          <ThemedText style={styles.time}>
+            {formatTimeRange(r.appointment?.start_time ?? null, r.appointment?.end_time ?? null) || '—'}
           </ThemedText>
-          {r.notes && <ThemedText type="small">{r.notes}</ThemedText>}
+          <ThemedText type="smallBold">{title}</ThemedText>
+          {r.horse && (
+            <View style={[styles.horseChip, { backgroundColor: theme.goldSoft }]}>
+              <ThemedText type="small" style={{ color: theme.gold, fontWeight: 700 }}>
+                Konj: {r.horse.name}
+              </ThemedText>
+            </View>
+          )}
+          {r.notes && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {r.notes}
+            </ThemedText>
+          )}
         </View>
       </View>
 
@@ -140,9 +156,15 @@ function ReservationCard({ reservation: r }: { reservation: Reservation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  card: { gap: Spacing.two },
+  card: { gap: Spacing.three },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  dateBox: { width: 56, alignItems: 'center' },
-  details: { flex: 1, gap: Spacing.half },
-  footer: { textAlign: 'center', marginTop: Spacing.three },
+  dateBox: { width: 64, paddingVertical: Spacing.two, borderRadius: Radius.medium, alignItems: 'center' },
+  dateWeekday: { letterSpacing: 1 },
+  dateDay: { fontSize: 28, lineHeight: 32, fontWeight: 800 },
+  dateMonth: { textTransform: 'uppercase', fontSize: 12, lineHeight: 14 },
+  details: { flex: 1, gap: Spacing.one },
+  time: { fontSize: 18, lineHeight: 22, fontWeight: 800 },
+  horseChip: { alignSelf: 'flex-start', paddingHorizontal: Spacing.two, paddingVertical: Spacing.half, borderRadius: Radius.small },
+  footerBox: { marginTop: Spacing.four, gap: Spacing.three },
+  footer: { textAlign: 'center' },
 });

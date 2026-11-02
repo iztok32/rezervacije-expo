@@ -7,7 +7,7 @@ import { PickerSheet, type PickerItem } from '@/components/picker-sheet';
 import type { RunAction } from '@/components/slot-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { useMemberSearch } from '@/hooks/use-member-search';
 import { useTheme } from '@/hooks/use-theme';
 import { api, ApiError } from '@/lib/api';
@@ -490,6 +490,7 @@ const styles = StyleSheet.create({
     padding: Spacing.two,
     minHeight: 60,
     fontSize: 16,
+    fontFamily: FontFamily.medium,
     textAlignVertical: 'top',
   },
 });

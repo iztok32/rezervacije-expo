@@ -6,6 +6,7 @@ import { router, type Href } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 
 /** Celozaslonsko podokno z naslovom in »Zapri« (obrazci v upravljanju). */
 export function Sheet({
@@ -64,6 +65,7 @@ export function goBack(fallback: Href = '/manage') {
 
 /** Glava podzaslona v upravljanju: »‹ Nazaj«, naslov in neobvezna akcija desno. */
 export function SubHeader({ title, right, back = '/manage' }: { title: string; right?: ReactNode; back?: Href }) {
+  const theme = useTheme();
   return (
     <View style={styles.subHeader}>
       <Pressable onPress={() => goBack(back)} hitSlop={12} accessibilityRole="button">
@@ -75,6 +77,7 @@ export function SubHeader({ title, right, back = '/manage' }: { title: string; r
         </ThemedText>
         {right}
       </View>
+      <View style={[styles.accent, { backgroundColor: theme.primary }]} />
     </View>
   );
 }
@@ -102,5 +105,6 @@ const styles = StyleSheet.create({
   },
   subHeader: { gap: Spacing.one, marginBottom: Spacing.two },
   subTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  subTitle: { flex: 1, fontSize: 26, lineHeight: 32 },
+  subTitle: { flex: 1 },
+  accent: { width: 40, height: 4, borderRadius: 2, marginTop: Spacing.one },
 });

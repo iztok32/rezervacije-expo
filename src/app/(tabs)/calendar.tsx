@@ -8,11 +8,11 @@ import { CenteredState, ScreenHeader, screenStyles, useContentPadding } from '@/
 import { SlotSheet } from '@/components/slot-sheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { CardShadow, Radius, Spacing } from '@/constants/theme';
 import { useApi } from '@/hooks/use-api';
 import { useTheme } from '@/hooks/use-theme';
 import { useConnectivity } from '@/lib/connectivity';
-import { addDays, formatDate, formatTimeRange, parseDate, toDateString } from '@/lib/dates';
+import { addDays, formatDate, parseDate, toDateString } from '@/lib/dates';
 import type { OccupancyResponse, OccupancySlot } from '@/lib/types';
 
 const RANGE_DAYS = 14;
@@ -164,24 +164,32 @@ function DayChip({
   onPress: () => void;
 }) {
   const theme = useTheme();
+  const today = date === toDateString(new Date());
+  const fg = selected ? theme.onPrimary : theme.text;
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }}>
-      <ThemedView type={selected ? 'backgroundSelected' : 'backgroundElement'} style={styles.chip}>
-        <ThemedText type="small" themeColor={selected ? 'text' : 'textSecondary'}>
-          {formatDate(date, { weekday: 'short' })}
+      <View
+        style={[
+          styles.chip,
+          { backgroundColor: selected ? theme.primary : theme.backgroundElement, borderColor: today && !selected ? theme.primary : 'transparent' },
+        ]}>
+        <ThemedText type="overline" style={[styles.chipWeekday, { color: selected ? theme.onPrimary : theme.textSecondary }]}>
+          {formatDate(date, { weekday: 'short' }).replace('.', '')}
         </ThemedText>
-        <ThemedText type="smallBold">{parseDate(date).getDate()}</ThemedText>
-        <View style={[styles.dot, { backgroundColor: hasMine ? theme.primary : 'transparent' }]} />
-      </ThemedView>
+        <ThemedText style={[styles.chipDay, { color: fg }]}>{parseDate(date).getDate()}</ThemedText>
+        <View style={[styles.dot, { backgroundColor: hasMine ? (selected ? theme.onPrimary : theme.primary) : 'transparent' }]} />
+      </View>
     </Pressable>
   );
 }
 
+type Tone = 'primary' | 'success' | 'danger' | 'textSecondary';
+
 /** Kratko stanje termina za seznam; podrobnosti in akcije so v SlotSheet. */
-function slotStatus(slot: OccupancySlot): { label: string; tone: 'primary' | 'success' | 'danger' | 'textSecondary' } {
+function slotStatus(slot: OccupancySlot): { label: string; tone: Tone } {
   if (slot.is_mine) return { label: 'Tvoja rezervacija', tone: 'primary' };
   if (slot.is_full) {
-    if (slot.waiting_list.entry_id) return { label: `Polno · v čakalni vrsti #${slot.waiting_list.position}`, tone: 'danger' };
+    if (slot.waiting_list.entry_id) return { label: `Polno · čakalna vrsta #${slot.waiting_list.position}`, tone: 'danger' };
     return { label: slot.waiting_list.can_join ? 'Polno · čakalna vrsta' : 'Polno', tone: 'danger' };
   }
   if (slot.restriction) return { label: slot.is_open ? 'Prijava ni mogoča' : 'Zaklenjeno', tone: 'textSecondary' };
@@ -199,8 +207,11 @@ function SlotCard({
 }) {
   const theme = useTheme();
   const ratio = slot.capacity ? Math.min(1, slot.booked / slot.capacity) : 0;
-  const barColor = slot.is_full ? theme.danger : theme.success;
   const status = slotStatus(slot);
+  const accent = theme[status.tone];
+  const soft = { primary: theme.primarySoft, success: theme.successSoft, danger: theme.primarySoft, textSecondary: theme.backgroundSelected }[
+    status.tone
+  ];
   const withoutHorse = showMissingHorses ? slot.participants.filter((p) => !p.horse).length : 0;
 
   return (
@@ -208,38 +219,42 @@ function SlotCard({
       {({ pressed }) => (
         <ThemedView
           type="backgroundElement"
-          style={[
-            screenStyles.card,
-            slot.is_mine && { borderWidth: 2, borderColor: theme.primary },
-            pressed && { opacity: 0.7 },
-          ]}>
-          <View style={styles.slotRow}>
-            <ThemedText type="smallBold" style={styles.slotName}>
+          style={[screenStyles.card, styles.slotCard, slot.is_mine && { borderColor: theme.primary }, pressed && { opacity: 0.75 }]}>
+          <View style={[styles.slotAccent, { backgroundColor: accent }]} />
+          <View style={styles.slotTime}>
+            <ThemedText style={styles.slotStart}>{slot.start_time ?? '—'}</ThemedText>
+            {slot.end_time && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {slot.end_time}
+              </ThemedText>
+            )}
+          </View>
+          <View style={styles.slotBody}>
+            <ThemedText type="smallBold" numberOfLines={2}>
               {slot.name}
             </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary">
-              {formatTimeRange(slot.start_time, slot.end_time)}
-            </ThemedText>
-          </View>
 
-          {slot.capacity ? (
-            <View style={[styles.bar, { backgroundColor: theme.backgroundSelected }]}>
-              <View style={[styles.barFill, { width: `${ratio * 100}%`, backgroundColor: barColor }]} />
-            </View>
-          ) : null}
+            {slot.capacity ? (
+              <View style={[styles.bar, { backgroundColor: theme.backgroundSelected }]}>
+                <View style={[styles.barFill, { width: `${ratio * 100}%`, backgroundColor: slot.is_full ? theme.danger : theme.success }]} />
+              </View>
+            ) : null}
 
-          <View style={styles.slotRow}>
-            <ThemedText type="small" themeColor="textSecondary">
-              {slot.capacity ? `Zasedeno ${slot.booked}/${slot.capacity}` : `Rezervacij: ${slot.booked}`}
-              {withoutHorse > 0 && (
-                <ThemedText type="small" style={{ color: theme.warning }}>
-                  {` · brez konja: ${withoutHorse}`}
+            <View style={styles.slotRow}>
+              <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
+                {slot.capacity ? `${slot.booked}/${slot.capacity}` : `Rezervacij: ${slot.booked}`}
+                {withoutHorse > 0 && (
+                  <ThemedText type="small" style={{ color: theme.warning, fontWeight: 700 }}>
+                    {` · brez konja: ${withoutHorse}`}
+                  </ThemedText>
+                )}
+              </ThemedText>
+              <View style={[styles.pill, { backgroundColor: soft }]}>
+                <ThemedText type="small" style={[styles.pillText, { color: accent }]}>
+                  {status.label}
                 </ThemedText>
-              )}
-            </ThemedText>
-            <ThemedText type="smallBold" style={{ color: theme[status.tone] }}>
-              {status.label}
-            </ThemedText>
+              </View>
+            </View>
           </View>
         </ThemedView>
       )}
@@ -250,19 +265,37 @@ function SlotCard({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   rangeNav: { flexDirection: 'row', gap: Spacing.three },
-  days: { gap: Spacing.two, paddingVertical: Spacing.one },
+  days: { gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.half },
   chip: {
-    width: 52,
+    width: 54,
     paddingVertical: Spacing.two,
-    borderRadius: Spacing.three,
+    borderRadius: Radius.medium,
+    borderWidth: 1.5,
     alignItems: 'center',
+    boxShadow: CardShadow,
   },
+  chipWeekday: { fontSize: 11, letterSpacing: 0.8 },
+  chipDay: { fontSize: 20, lineHeight: 24, fontWeight: 800 },
   dot: { width: 6, height: 6, borderRadius: 3, marginTop: Spacing.half },
   flex: { flex: 1 },
   dayTitle: { marginTop: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   dayActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.four },
+  slotCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingLeft: Spacing.three + Spacing.one,
+    borderWidth: 1.5,
+    borderColor: 'transparent',
+    overflow: 'hidden',
+  },
+  slotAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
+  slotTime: { width: 54, alignItems: 'flex-start' },
+  slotStart: { fontSize: 18, lineHeight: 22, fontWeight: 800 },
+  slotBody: { flex: 1, gap: Spacing.one },
   slotRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
-  slotName: { flex: 1 },
   bar: { height: 6, borderRadius: 3, overflow: 'hidden', marginVertical: Spacing.one },
   barFill: { height: '100%', borderRadius: 3 },
+  pill: { paddingHorizontal: Spacing.two, paddingVertical: Spacing.half, borderRadius: Radius.small },
+  pillText: { fontWeight: 700, fontSize: 12, lineHeight: 16 },
 });

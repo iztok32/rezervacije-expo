@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Switch, TextInput, View, type KeyboardTypeOption
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError } from '@/lib/api';
 
@@ -209,6 +209,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     paddingVertical: Spacing.two,
     fontSize: 16,
+    fontFamily: FontFamily.medium,
     minHeight: 44,
   },
   multiline: { minHeight: 96, textAlignVertical: 'top' },

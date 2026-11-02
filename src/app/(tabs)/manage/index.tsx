@@ -6,6 +6,7 @@ import { ScreenHeader, screenStyles, useContentPadding } from '@/components/scre
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { manageItems } from '@/lib/manage-menu';
 import { useSession } from '@/lib/session';
 
@@ -13,6 +14,7 @@ export default function ManageScreen() {
   const { user } = useSession();
   const padding = useContentPadding();
   const items = manageItems(user);
+  const theme = useTheme();
 
   return (
     <ThemedView style={styles.container}>
@@ -28,14 +30,14 @@ export default function ManageScreen() {
           <Link key={String(item.href)} href={item.href} asChild>
             <Pressable accessibilityRole="button">
               {({ pressed }) => (
-                <ThemedView type="backgroundElement" style={[screenStyles.card, styles.item, pressed && { opacity: 0.7 }]}>
+                <ThemedView type="backgroundElement" style={[screenStyles.card, styles.item, { borderLeftColor: theme.primary }, pressed && { opacity: 0.7 }]}>
                   <View style={styles.flex}>
                     <ThemedText type="smallBold">{item.title}</ThemedText>
                     <ThemedText type="small" themeColor="textSecondary">
                       {item.description}
                     </ThemedText>
                   </View>
-                  <ThemedText themeColor="textSecondary">›</ThemedText>
+                  <ThemedText style={{ color: theme.primary, fontSize: 22 }}>›</ThemedText>
                 </ThemedView>
               )}
             </Pressable>
@@ -50,5 +52,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   hint: { marginBottom: Spacing.two },
-  item: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 64 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 72, borderLeftWidth: 5 },
 });

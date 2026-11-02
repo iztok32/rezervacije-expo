@@ -9,7 +9,7 @@ import { NotifySheet } from '@/components/notify-sheet';
 import { SlotAdmin } from '@/components/slot-admin';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { FontFamily, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { api, errorMessage } from '@/lib/api';
 import { API_URL } from '@/lib/config';
@@ -459,6 +459,7 @@ const styles = StyleSheet.create({
     padding: Spacing.two,
     minHeight: 72,
     fontSize: 16,
+    fontFamily: FontFamily.medium,
     textAlignVertical: 'top',
   },
   counter: { textAlign: 'right' },

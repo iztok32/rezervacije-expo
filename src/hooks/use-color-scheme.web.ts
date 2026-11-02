@@ -1,21 +1,17 @@
-import { useEffect, useState } from 'react';
-import { useColorScheme as useRNColorScheme } from 'react-native';
+import { useSyncExternalStore } from 'react';
+import { useColorScheme as useSystemColorScheme } from 'react-native';
 
-/**
- * To support static rendering, this value needs to be re-calculated on the client side for web
- */
-export function useColorScheme() {
-  const [hasHydrated, setHasHydrated] = useState(false);
+import { useThemePreference } from '@/lib/theme-preference';
 
-  useEffect(() => {
-    setHasHydrated(true);
-  }, []);
+// Pri statičnem izrisu (strežnik) sistemska tema ni znana — prvi izris na odjemalcu je »svetla«,
+// takoj zatem prava vrednost. useSyncExternalStore to naredi brez setState v efektu.
+const subscribe = () => () => {};
 
-  const colorScheme = useRNColorScheme();
-
-  if (hasHydrated) {
-    return colorScheme;
-  }
-
-  return 'light';
+/** Tema aplikacije: izbira uporabnika (svetla/temna) ali sistemska, če je izbrano »Samodejno«. */
+export function useColorScheme(): 'light' | 'dark' {
+  const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
+  const system = useSystemColorScheme();
+  const { preference } = useThemePreference();
+  if (preference !== 'system') return preference;
+  return hydrated && system === 'dark' ? 'dark' : 'light';
 }

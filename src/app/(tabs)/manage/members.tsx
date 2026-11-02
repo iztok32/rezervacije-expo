@@ -6,7 +6,7 @@ import { CenteredState, screenStyles, useContentPadding } from '@/components/scr
 import { SubHeader } from '@/components/sheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { useMemberSearch } from '@/hooks/use-member-search';
 import { useTheme } from '@/hooks/use-theme';
 import { useConnectivity } from '@/lib/connectivity';
@@ -61,5 +61,5 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  search: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16 },
+  search: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16, fontFamily: FontFamily.medium },
 });

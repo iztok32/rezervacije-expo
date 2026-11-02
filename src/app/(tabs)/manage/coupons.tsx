@@ -11,7 +11,7 @@ import { CenteredState, screenStyles, useContentPadding } from '@/components/scr
 import { Sheet, SubHeader } from '@/components/sheet';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
+import { FontFamily, Spacing } from '@/constants/theme';
 import { useApi } from '@/hooks/use-api';
 import { useMemberSearch } from '@/hooks/use-member-search';
 import { useTheme } from '@/hooks/use-theme';
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   flex: { flex: 1 },
   flexCenter: { flex: 1, textAlign: 'center' },
-  search: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16 },
+  search: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16, fontFamily: FontFamily.medium },
   entry: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   right: { alignItems: 'flex-end', gap: Spacing.one },
   pager: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },

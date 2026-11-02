@@ -1,7 +1,7 @@
 import { NativeTabs } from 'expo-router/native-tabs';
-import { useColorScheme } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
-import { Colors } from '@/constants/theme';
+import { Colors, FontFamily } from '@/constants/theme';
 import { manageItems } from '@/lib/manage-menu';
 import { useSession } from '@/lib/session';
 
@@ -14,9 +14,15 @@ export default function AppTabs() {
 
   return (
     <NativeTabs
-      backgroundColor={colors.background}
-      indicatorColor={colors.backgroundElement}
-      labelStyle={{ selected: { color: colors.text } }}>
+      backgroundColor={colors.backgroundElement}
+      tintColor={colors.primary}
+      iconColor={{ default: colors.textSecondary, selected: colors.primary }}
+      indicatorColor={colors.primarySoft}
+      rippleColor={colors.primarySoft}
+      labelStyle={{
+        default: { color: colors.textSecondary, fontFamily: FontFamily.semibold, fontSize: 12 },
+        selected: { color: colors.primary, fontFamily: FontFamily.bold, fontSize: 12 },
+      }}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Moje rezervacije</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon

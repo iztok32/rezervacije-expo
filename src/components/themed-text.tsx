@@ -1,17 +1,21 @@
-import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
+import { StyleSheet, Text, type TextProps, type TextStyle } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
+import { Fonts, fontForWeight, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type ThemedTextProps = TextProps & {
-  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
+  type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'overline' | 'link' | 'linkPrimary' | 'code';
   themeColor?: ThemeColor;
 };
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+  const base = type === 'linkPrimary' || type === 'overline' ? theme.primary : theme[themeColor ?? 'text'];
+  const flat = StyleSheet.flatten([styles[type], style]) as TextStyle | undefined;
+  // Montserrat ima ločeno datoteko za vsako debelino — izberemo jo po fontWeight
+  const font = type === 'code' ? undefined : { fontFamily: fontForWeight(flat?.fontWeight), fontWeight: 'normal' as const };
 
-  return <Text style={[{ color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+  return <Text style={[{ color: base }, styles[type], style, font]} {...rest} />;
 }
 
 const styles = StyleSheet.create({
@@ -31,27 +35,34 @@ const styles = StyleSheet.create({
     fontWeight: 500,
   },
   title: {
-    fontSize: 48,
-    fontWeight: 600,
-    lineHeight: 52,
+    fontSize: 34,
+    lineHeight: 40,
+    fontWeight: 800,
   },
   subtitle: {
-    fontSize: 32,
-    lineHeight: 44,
-    fontWeight: 600,
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: 800,
+  },
+  overline: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: 700,
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
   },
   link: {
     lineHeight: 30,
     fontSize: 14,
+    fontWeight: 600,
   },
   linkPrimary: {
     lineHeight: 30,
     fontSize: 14,
-    color: '#3c87f7',
+    fontWeight: 700,
   },
   code: {
     fontFamily: Fonts.mono,
-    fontWeight: Platform.select({ android: 700 }) ?? 500,
     fontSize: 12,
   },
 });
