@@ -16,15 +16,15 @@ export const Brand = {
 
 export const Colors = {
   light: {
-    text: '#232325',
-    background: '#F5F3F0',
+    text: '#1F1D1B',
+    background: '#F4F2EE',
     backgroundElement: '#FFFFFF',
-    backgroundSelected: '#EFEAE4',
-    textSecondary: '#676A70',
+    backgroundSelected: '#EEEAE5',
+    textSecondary: '#5F5A55',
     border: '#E6E1DA',
-    // Rdeča za besedilo in gumbe — malo temnejša od logotipa zaradi berljivosti na beli
-    primary: '#D6141B',
-    primaryPressed: Brand.redDark,
+    // Rdeča za besedilo in gumbe — temnejša od logotipa zaradi berljivosti na beli (predlog »Ploščice«)
+    primary: '#B3121A',
+    primaryPressed: '#8C0E14',
     primarySoft: '#FDECEC',
     onPrimary: '#FFFFFF',
     gold: '#9A7614',
@@ -34,6 +34,12 @@ export const Colors = {
     danger: '#B3261E',
     warning: '#8A5A00',
     warningBackground: '#FFF4D6',
+    // Temna glava zavihka »Domov«
+    hero: '#1F1D1B',
+    heroText: '#FFFFFF',
+    heroMuted: '#C9C3BD',
+    heroControl: 'rgba(255,255,255,0.1)',
+    notifyDot: '#F2545B',
   },
   dark: {
     text: '#F4F2EF',
@@ -53,6 +59,11 @@ export const Colors = {
     danger: '#FF6B63',
     warning: '#F6C35B',
     warningBackground: '#3A2E12',
+    hero: '#0A0A0B',
+    heroText: '#FFFFFF',
+    heroMuted: '#BDB7B1',
+    heroControl: 'rgba(255,255,255,0.1)',
+    notifyDot: '#FF6B70',
   },
 } as const;
 

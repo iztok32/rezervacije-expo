@@ -1,131 +1,164 @@
-import { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+
+import { CalendarPicker, shiftSelected, visibleRange, type CalendarView } from '@/components/calendar-picker';
 
 import { DayHorsesSheet } from '@/components/day-horses-sheet';
+import {
+  HeroEmpty,
+  HeroScreen,
+  HeroTile,
+  heroStyles,
+  NotificationsButton,
+  type IconName,
+} from '@/components/hero-screen';
+import { Icon } from '@/components/icon';
 import { NotifySheet } from '@/components/notify-sheet';
 import { OfflineBanner } from '@/components/offline-banner';
-import { CenteredState, ScreenHeader, screenStyles, useContentPadding } from '@/components/screen';
 import { SlotSheet } from '@/components/slot-sheet';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { CardShadow, Radius, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useApi } from '@/hooks/use-api';
+import { useHome } from '@/hooks/use-home';
 import { useTheme } from '@/hooks/use-theme';
 import { useConnectivity } from '@/lib/connectivity';
-import { addDays, formatDate, parseDate, toDateString } from '@/lib/dates';
+import { formatDate, toDateString } from '@/lib/dates';
 import type { OccupancyResponse, OccupancySlot } from '@/lib/types';
 
-const RANGE_DAYS = 14;
+// Izbrani pogled (teden ali mesec) ostane na napravi tudi po odjavi, kot izbira teme
+const VIEW_KEY = 'pref:calendarView';
 
+/** »Sobota, 14. november« za naslov glave. */
+function dayTitle(date: string): string {
+  const text = formatDate(date, { weekday: 'long', day: 'numeric', month: 'long' });
+  return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+/** »3 termini« — ednina, dvojina, množina in rodilnik. */
+function slotsLabel(n: number): string {
+  const r = n % 100;
+  const word = r === 1 ? 'termin' : r === 2 ? 'termina' : r === 3 || r === 4 ? 'termini' : 'terminov';
+  return `${n} ${word}`;
+}
+
+/** Termini v slogu »Domov«: tedenski trak ali mesečni koledar v temni glavi, termini dneva kot ploščice. */
 export default function CalendarScreen() {
-  const padding = useContentPadding();
+  const theme = useTheme();
   const { isOnline, recheck } = useConnectivity();
-  const [start, setStart] = useState(() => toDateString(new Date()));
-  const [selected, setSelected] = useState(start);
+  const { home } = useHome();
+  const [view, setView] = useState<CalendarView>('week');
+  const [selected, setSelected] = useState(() => toDateString(new Date()));
   const [openSlotId, setOpenSlotId] = useState<number | null>(null);
   const [dayHorsesOpen, setDayHorsesOpen] = useState(false);
   const [dayNotifyOpen, setDayNotifyOpen] = useState(false);
-  const end = toDateString(addDays(parseDate(start), RANGE_DAYS - 1));
+  const { start, end } = visibleRange(view, selected);
+
+  useEffect(() => {
+    AsyncStorage.getItem(VIEW_KEY).then(
+      (v) => {
+        if (v === 'week' || v === 'month') setView(v);
+      },
+      () => {},
+    );
+  }, []);
+
+  function toggleView() {
+    const next = view === 'week' ? 'month' : 'week';
+    setView(next);
+    AsyncStorage.setItem(VIEW_KEY, next).catch(() => {});
+  }
 
   // Termini so na voljo samo s povezavo; brez nje aplikacija pokaže le lastne rezervacije
   const { data, error, loading, refreshing, refresh } = useApi<OccupancyResponse>(
     isOnline ? `/occupancy?start=${start}&end=${end}` : null,
   );
 
-  function shiftRange(days: number) {
-    const next = toDateString(addDays(parseDate(start), days));
-    setStart(next);
-    setSelected(next);
-  }
-
   const day = data?.days.find((d) => d.date === selected);
   // Odprti termin beremo iz zadnjih podatkov, da podokno po akciji pokaže novo stanje
   const openSlot = day?.slots.find((s) => s.appointment_id === openSlotId) ?? null;
   // Število rezervacij dneva (za »Konji za dan« in obvestilo vsem na ta dan)
   const dayBooked = day?.slots.reduce((n, s) => n + s.booked, 0) ?? 0;
+  const caps = data?.capabilities;
+
+  const dayPicker = isOnline ? (
+    <CalendarPicker
+      view={view}
+      selected={selected}
+      days={data?.days}
+      onSelect={setSelected}
+      onShift={(dir) => setSelected(shiftSelected(view, selected, dir))}
+      onToggleView={toggleView}
+    />
+  ) : undefined;
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={[screenStyles.content, padding]}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={isOnline ? refresh : () => recheck()} />
-        }>
-        <ScreenHeader
-          title="Termini"
-          right={
-            isOnline && (
-              <View style={styles.rangeNav}>
-                <Pressable onPress={() => shiftRange(-RANGE_DAYS)} hitSlop={8} accessibilityRole="button">
-                  <ThemedText type="linkPrimary">‹ Prej</ThemedText>
-                </Pressable>
-                <Pressable onPress={() => shiftRange(RANGE_DAYS)} hitSlop={8} accessibilityRole="button">
-                  <ThemedText type="linkPrimary">Naprej ›</ThemedText>
-                </Pressable>
-              </View>
-            )
-          }
-        />
-
+    <>
+      <HeroScreen
+        compact
+        title={isOnline ? dayTitle(selected) : 'Termini niso na voljo'}
+        actions={<NotificationsButton unread={home?.unread_notifications ?? 0} />}
+        headerExtra={dayPicker}
+        refreshing={refreshing}
+        onRefresh={isOnline ? refresh : () => recheck()}>
         <OfflineBanner />
 
         {!isOnline ? (
-          <CenteredState message="Termini in oddaja rezervacij so na voljo samo s povezavo. Svoje rezervacije vidiš pod »Moje rezervacije«." />
+          <HeroEmpty
+            icon={{ ios: 'wifi.slash', md: 'wifi_off' }}
+            title="Brez povezave"
+            text="Termini in oddaja rezervacij so na voljo samo s povezavo. Svoje rezervacije vidiš tudi brez nje."
+            action={{ title: 'Moje rezervacije', onPress: () => router.push('/reservations') }}
+          />
         ) : (
           <>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.days}>
-              {Array.from({ length: RANGE_DAYS }, (_, i) => toDateString(addDays(parseDate(start), i))).map(
-                (date) => (
-                  <DayChip
-                    key={date}
-                    date={date}
-                    selected={date === selected}
-                    hasMine={!!data?.days.find((d) => d.date === date)?.slots.some((s) => s.is_mine)}
-                    onPress={() => setSelected(date)}
-                  />
-                ),
-              )}
-            </ScrollView>
+            {day?.holiday && (
+              <HeroTile style={styles.holiday}>
+                <Icon ios="sparkles" md="celebration" size={20} color={theme.gold} />
+                <ThemedText style={[heroStyles.tileTitle, styles.flex]}>{day.holiday}</ThemedText>
+              </HeroTile>
+            )}
 
-            <View style={styles.dayTitle}>
-              <ThemedText type="smallBold" style={styles.flex}>
-                {formatDate(selected, { weekday: 'long', day: 'numeric', month: 'long' })}
-                {day?.holiday ? ` · ${day.holiday}` : ''}
-              </ThemedText>
-            </View>
-            {dayBooked > 0 && (data?.capabilities?.assign_horses || data?.capabilities?.notify_day) && (
-              <View style={styles.dayActions}>
-                {data?.capabilities?.assign_horses && (
-                  <Pressable onPress={() => setDayHorsesOpen(true)} hitSlop={8} accessibilityRole="button">
-                    <ThemedText type="linkPrimary">Konji za dan ›</ThemedText>
-                  </Pressable>
+            {dayBooked > 0 && (caps?.assign_horses || caps?.notify_day) && (
+              <View style={heroStyles.row}>
+                {caps?.assign_horses && (
+                  <ActionTile icon={{ ios: 'figure.equestrian.sports', md: 'pets' }} label="Konji za dan" onPress={() => setDayHorsesOpen(true)} />
                 )}
-                {data?.capabilities?.notify_day && (
-                  <Pressable onPress={() => setDayNotifyOpen(true)} hitSlop={8} accessibilityRole="button">
-                    <ThemedText type="linkPrimary">✉ Obvesti dan ›</ThemedText>
-                  </Pressable>
+                {caps?.notify_day && (
+                  <ActionTile icon={{ ios: 'envelope', md: 'mail' }} label="Obvesti dan" onPress={() => setDayNotifyOpen(true)} />
                 )}
               </View>
             )}
 
-            {loading || error || !day || day.slots.length === 0 ? (
-              <CenteredState
-                loading={loading}
-                message={loading ? undefined : (error ?? 'Ta dan ni terminov.')}
+            {loading && !data ? (
+              <ActivityIndicator color={theme.primary} style={styles.loading} />
+            ) : error && !data ? (
+              <HeroEmpty icon={{ ios: 'calendar', md: 'calendar_month' }} title="Napaka pri nalaganju" text={error} />
+            ) : !day || day.slots.length === 0 ? (
+              <HeroEmpty
+                icon={{ ios: 'calendar', md: 'calendar_month' }}
+                title="Ta dan ni terminov"
+                text="Izberi drug dan zgoraj ali se premakni naprej s puščico."
               />
             ) : (
-              day.slots.map((slot) => (
-                <SlotCard
-                  key={slot.appointment_id}
-                  slot={slot}
-                  showMissingHorses={!!data?.capabilities?.assign_horses}
-                  onPress={() => setOpenSlotId(slot.appointment_id)}
-                />
-              ))
+              <View style={styles.section}>
+                <ThemedText style={[heroStyles.label, heroStyles.sectionLabel, { color: theme.primary }]}>
+                  {slotsLabel(day.slots.length)}
+                </ThemedText>
+                {day.slots.map((slot) => (
+                  <SlotTile
+                    key={slot.appointment_id}
+                    slot={slot}
+                    showMissingHorses={!!caps?.assign_horses}
+                    onPress={() => setOpenSlotId(slot.appointment_id)}
+                  />
+                ))}
+              </View>
             )}
           </>
         )}
-      </ScrollView>
+      </HeroScreen>
 
       {openSlot && data && (
         <SlotSheet
@@ -144,41 +177,28 @@ export default function CalendarScreen() {
       {dayNotifyOpen && day && (
         <NotifySheet
           target={{ kind: 'day', date: day.date, recipients: dayBooked }}
-          channels={data?.capabilities?.notify_channels ?? ['portal']}
+          channels={caps?.notify_channels ?? ['portal']}
           onClose={() => setDayNotifyOpen(false)}
         />
       )}
-    </ThemedView>
+    </>
   );
 }
 
-function DayChip({
-  date,
-  selected,
-  hasMine,
-  onPress,
-}: {
-  date: string;
-  selected: boolean;
-  hasMine: boolean;
-  onPress: () => void;
-}) {
+/** Manjša ploščica z akcijo za upravljavce (konji, obvestilo dneva). */
+function ActionTile({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
   const theme = useTheme();
-  const today = date === toDateString(new Date());
-  const fg = selected ? theme.onPrimary : theme.text;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }}>
-      <View
-        style={[
-          styles.chip,
-          { backgroundColor: selected ? theme.primary : theme.backgroundElement, borderColor: today && !selected ? theme.primary : 'transparent' },
-        ]}>
-        <ThemedText type="overline" style={[styles.chipWeekday, { color: selected ? theme.onPrimary : theme.textSecondary }]}>
-          {formatDate(date, { weekday: 'short' }).replace('.', '')}
-        </ThemedText>
-        <ThemedText style={[styles.chipDay, { color: fg }]}>{parseDate(date).getDate()}</ThemedText>
-        <View style={[styles.dot, { backgroundColor: hasMine ? (selected ? theme.onPrimary : theme.primary) : 'transparent' }]} />
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [heroStyles.tile, styles.actionTile, { backgroundColor: theme.backgroundElement }, pressed && heroStyles.pressed]}>
+      <View style={[styles.actionIcon, { backgroundColor: theme.primarySoft }]}>
+        <Icon ios={icon.ios} md={icon.md} size={18} color={theme.primary} />
       </View>
+      <ThemedText style={[styles.actionText, { color: theme.text }]} numberOfLines={1}>
+        {label}
+      </ThemedText>
     </Pressable>
   );
 }
@@ -189,14 +209,14 @@ type Tone = 'primary' | 'success' | 'danger' | 'textSecondary';
 function slotStatus(slot: OccupancySlot): { label: string; tone: Tone } {
   if (slot.is_mine) return { label: 'Tvoja rezervacija', tone: 'primary' };
   if (slot.is_full) {
-    if (slot.waiting_list.entry_id) return { label: `Polno · čakalna vrsta #${slot.waiting_list.position}`, tone: 'danger' };
+    if (slot.waiting_list.entry_id) return { label: `Čakalna vrsta #${slot.waiting_list.position}`, tone: 'danger' };
     return { label: slot.waiting_list.can_join ? 'Polno · čakalna vrsta' : 'Polno', tone: 'danger' };
   }
   if (slot.restriction) return { label: slot.is_open ? 'Prijava ni mogoča' : 'Zaklenjeno', tone: 'textSecondary' };
   return { label: slot.available !== null ? `Prostih: ${slot.available}` : 'Prosto', tone: 'success' };
 }
 
-function SlotCard({
+function SlotTile({
   slot,
   showMissingHorses,
   onPress,
@@ -215,87 +235,68 @@ function SlotCard({
   const withoutHorse = showMissingHorses ? slot.participants.filter((p) => !p.horse).length : 0;
 
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityHint="Odpre podrobnosti termina">
-      {({ pressed }) => (
-        <ThemedView
-          type="backgroundElement"
-          style={[screenStyles.card, styles.slotCard, slot.is_mine && { borderColor: theme.primary }, pressed && { opacity: 0.75 }]}>
-          <View style={[styles.slotAccent, { backgroundColor: accent }]} />
-          <View style={styles.slotTime}>
-            <ThemedText style={styles.slotStart}>{slot.start_time ?? '—'}</ThemedText>
-            {slot.end_time && (
-              <ThemedText type="small" themeColor="textSecondary">
-                {slot.end_time}
-              </ThemedText>
-            )}
-          </View>
-          <View style={styles.slotBody}>
-            <ThemedText type="smallBold" numberOfLines={2}>
-              {slot.name}
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${slot.start_time ?? ''} ${slot.name}, ${status.label}`}
+      accessibilityHint="Odpre podrobnosti termina"
+      style={({ pressed }) => pressed && heroStyles.pressed}>
+      <HeroTile style={[styles.slot, slot.is_mine && { borderColor: theme.primary }]}>
+        <View style={[styles.timeBox, { backgroundColor: slot.is_mine ? theme.primary : theme.backgroundSelected }]}>
+          <ThemedText style={[styles.timeStart, { color: slot.is_mine ? theme.onPrimary : theme.text }]}>
+            {slot.start_time ?? '—'}
+          </ThemedText>
+          {slot.end_time && (
+            <ThemedText style={[styles.timeEnd, { color: slot.is_mine ? theme.onPrimary : theme.textSecondary }]}>
+              {slot.end_time}
             </ThemedText>
+          )}
+        </View>
+        <View style={styles.slotBody}>
+          <ThemedText style={heroStyles.tileTitle} numberOfLines={2}>
+            {slot.name}
+          </ThemedText>
 
-            {slot.capacity ? (
-              <View style={[styles.bar, { backgroundColor: theme.backgroundSelected }]}>
-                <View style={[styles.barFill, { width: `${ratio * 100}%`, backgroundColor: slot.is_full ? theme.danger : theme.success }]} />
-              </View>
-            ) : null}
+          {slot.capacity ? (
+            <View style={[styles.bar, { backgroundColor: theme.backgroundSelected }]}>
+              <View style={[styles.barFill, { width: `${ratio * 100}%`, backgroundColor: slot.is_full ? theme.danger : theme.success }]} />
+            </View>
+          ) : null}
 
-            <View style={styles.slotRow}>
-              <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-                {slot.capacity ? `${slot.booked}/${slot.capacity}` : `Rezervacij: ${slot.booked}`}
-                {withoutHorse > 0 && (
-                  <ThemedText type="small" style={{ color: theme.warning, fontWeight: 700 }}>
-                    {` · brez konja: ${withoutHorse}`}
-                  </ThemedText>
-                )}
-              </ThemedText>
-              <View style={[styles.pill, { backgroundColor: soft }]}>
-                <ThemedText type="small" style={[styles.pillText, { color: accent }]}>
-                  {status.label}
-                </ThemedText>
-              </View>
+          <View style={styles.slotRow}>
+            <ThemedText themeColor="textSecondary" style={[heroStyles.meta, styles.flex]}>
+              {slot.capacity ? `${slot.booked}/${slot.capacity}` : `Rezervacij: ${slot.booked}`}
+              {withoutHorse > 0 && (
+                <ThemedText style={[heroStyles.meta, { color: theme.warning }]}>{` · brez konja: ${withoutHorse}`}</ThemedText>
+              )}
+            </ThemedText>
+            <View style={[styles.pill, { backgroundColor: soft }]}>
+              <ThemedText style={[styles.pillText, { color: accent }]}>{status.label}</ThemedText>
             </View>
           </View>
-        </ThemedView>
-      )}
+        </View>
+        <Icon ios="chevron.right" md="chevron_right" size={18} color={theme.textSecondary} />
+      </HeroTile>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  rangeNav: { flexDirection: 'row', gap: Spacing.three },
-  days: { gap: Spacing.two, paddingVertical: Spacing.two, paddingHorizontal: Spacing.half },
-  chip: {
-    width: 54,
-    paddingVertical: Spacing.two,
-    borderRadius: Radius.medium,
-    borderWidth: 1.5,
-    alignItems: 'center',
-    boxShadow: CardShadow,
-  },
-  chipWeekday: { fontSize: 11, letterSpacing: 0.8 },
-  chipDay: { fontSize: 20, lineHeight: 24, fontWeight: 800 },
-  dot: { width: 6, height: 6, borderRadius: 3, marginTop: Spacing.half },
   flex: { flex: 1 },
-  dayTitle: { marginTop: Spacing.two, flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  dayActions: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.four },
-  slotCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingLeft: Spacing.three + Spacing.one,
-    borderWidth: 1.5,
-    borderColor: 'transparent',
-    overflow: 'hidden',
-  },
-  slotAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 5 },
-  slotTime: { width: 54, alignItems: 'flex-start' },
-  slotStart: { fontSize: 18, lineHeight: 22, fontWeight: 800 },
+  loading: { paddingVertical: Spacing.five },
+  holiday: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - Spacing.one },
+  actionTile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.three - Spacing.one },
+  actionIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  actionText: { flex: 1, fontSize: 14, lineHeight: 18, fontWeight: 700 },
+  section: { gap: 10 },
+  slot: { flexDirection: 'row', alignItems: 'center', gap: 14, borderWidth: 2, borderColor: 'transparent' },
+  timeBox: { width: 60, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  timeStart: { fontSize: 16, lineHeight: 20, fontWeight: 800 },
+  timeEnd: { fontSize: 11, lineHeight: 14, fontWeight: 600 },
   slotBody: { flex: 1, gap: Spacing.one },
   slotRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: Spacing.two },
-  bar: { height: 6, borderRadius: 3, overflow: 'hidden', marginVertical: Spacing.one },
+  bar: { height: 6, borderRadius: 3, overflow: 'hidden', marginVertical: 2 },
   barFill: { height: '100%', borderRadius: 3 },
-  pill: { paddingHorizontal: Spacing.two, paddingVertical: Spacing.half, borderRadius: Radius.small },
-  pillText: { fontWeight: 700, fontSize: 12, lineHeight: 16 },
+  pill: { paddingHorizontal: Spacing.two, paddingVertical: 2, borderRadius: 8 },
+  pillText: { fontSize: 11, lineHeight: 16, fontWeight: 700 },
 });

@@ -1,12 +1,13 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import type { Reservation, User } from './types';
+import type { HomeSummary, Reservation, User } from './types';
 
 // Lokalna kopija za način brez povezave: zadnji znani uporabnik in njegove oddane rezervacije.
 // Žeton je posebej v SecureStore (token-storage.ts). Napake shrambe ne smejo ustaviti aplikacije.
 
 const USER_KEY = 'cache:user';
 const reservationsKey = (userId: number) => `cache:reservations:${userId}`;
+const homeKey = (userId: number) => `cache:home:${userId}`;
 
 export type Cached<T> = { data: T; savedAt: string };
 
@@ -41,6 +42,14 @@ export function loadCachedReservations(userId: number): Promise<Cached<Reservati
 
 export function saveCachedReservations(userId: number, reservations: Reservation[]): Promise<void> {
   return write(reservationsKey(userId), { data: reservations, savedAt: new Date().toISOString() });
+}
+
+export function loadCachedHome(userId: number): Promise<Cached<HomeSummary> | null> {
+  return read<Cached<HomeSummary>>(homeKey(userId));
+}
+
+export function saveCachedHome(userId: number, home: HomeSummary): Promise<void> {
+  return write(homeKey(userId), { data: home, savedAt: new Date().toISOString() });
 }
 
 export async function clearCache(): Promise<void> {

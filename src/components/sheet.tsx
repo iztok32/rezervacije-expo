@@ -3,6 +3,7 @@ import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, type Href } from 'expo-router';
 
+import { ThemeToggle } from '@/components/theme-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
@@ -68,9 +69,12 @@ export function SubHeader({ title, right, back = '/manage' }: { title: string; r
   const theme = useTheme();
   return (
     <View style={styles.subHeader}>
-      <Pressable onPress={() => goBack(back)} hitSlop={12} accessibilityRole="button">
-        <ThemedText type="linkPrimary">‹ Nazaj</ThemedText>
-      </Pressable>
+      <View style={styles.backRow}>
+        <Pressable onPress={() => goBack(back)} hitSlop={12} accessibilityRole="button">
+          <ThemedText type="linkPrimary">‹ Nazaj</ThemedText>
+        </Pressable>
+        <ThemeToggle />
+      </View>
       <View style={styles.subTitleRow}>
         <ThemedText type="subtitle" style={styles.subTitle}>
           {title}
@@ -104,6 +108,7 @@ const styles = StyleSheet.create({
     gap: Spacing.three,
   },
   subHeader: { gap: Spacing.one, marginBottom: Spacing.two },
+  backRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   subTitleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   subTitle: { flex: 1 },
   accent: { width: 40, height: 4, borderRadius: 2, marginTop: Spacing.one },

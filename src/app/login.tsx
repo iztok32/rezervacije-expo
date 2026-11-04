@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/button';
 import { Notice } from '@/components/notice';
-import { ThemeSwitch } from '@/components/theme-switch';
+import { ThemeToggle } from '@/components/theme-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { CardShadow, FontFamily, Radius, Spacing } from '@/constants/theme';
@@ -59,6 +59,9 @@ export default function LoginScreen() {
             {/* Zatemnitev fotografije (celotna + močnejša spodaj), da je bel napis berljiv */}
             <View style={styles.heroShade} />
             <View style={styles.heroShadeBottom} />
+            <View style={[styles.heroToggle, { top: insets.top + Spacing.three }]}>
+              <ThemeToggle />
+            </View>
             <View style={[styles.heroText, { paddingTop: insets.top + Spacing.four }]}>
               <ThemedText type="overline" style={styles.heroOverline}>
                 Konjeniški klub Karlo
@@ -66,7 +69,7 @@ export default function LoginScreen() {
               <ThemedText type="title" style={styles.heroTitle}>
                 Rezervacije
               </ThemedText>
-              <ThemedText style={styles.heroLead}>Šola jahanja, treningi in tekmovanja nad Mariborom.</ThemedText>
+              <ThemedText style={styles.heroLead}>Šola jahanja, treningi in tekmovanja</ThemedText>
             </View>
           </View>
 
@@ -83,9 +86,6 @@ export default function LoginScreen() {
 
             <View style={styles.form}>
               <ThemedText type="smallBold">Prijava</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                Prijavi se z e-pošto in geslom svojega računa kluba.
-              </ThemedText>
 
               <TextInput
                 style={inputStyle}
@@ -117,9 +117,10 @@ export default function LoginScreen() {
               {error && <Notice tone="danger" text={error} />}
 
               <Button title="Prijava" onPress={handleSubmit} loading={submitting} disabled={!canSubmit} />
+              <ThemedText type="small" themeColor="textSecondary" style={styles.hint}>
+                Prijavi se z e-pošto in geslom svojega računa kluba.
+              </ThemedText>
             </View>
-
-            <ThemeSwitch />
 
             <ThemedText type="small" themeColor="textSecondary" style={styles.footer}>
               Kmetija Kovačič · Meljski hrib, Maribor
@@ -178,4 +179,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.medium,
   },
   footer: { textAlign: 'center' },
+  hint: { fontSize: 12, lineHeight: 16, textAlign: 'center' },
+  heroToggle: { position: 'absolute', right: Spacing.three, zIndex: 1 },
 });

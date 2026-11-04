@@ -1,17 +1,23 @@
 import { Image } from 'expo-image';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Platform, StyleSheet, View, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ThemeToggle } from '@/components/theme-toggle';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, CardShadow, MaxContentWidth, Radius, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
-// Odmik vsebine: na napravi varno območje + spodnji zavihki, na spletu plavajoča vrstica zavihkov zgoraj.
-export function useContentPadding(): ViewStyle {
+// Odmik vsebine: na napravi varno območje + spodnji zavihki; na spletu plavajoča vrstica zgoraj,
+// na ozkem zaslonu (telefon v brskalniku, app-tabs.web.tsx) pa vrstica spodaj.
+export function useContentPadding(): { paddingTop: number; paddingBottom: number } {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
   return Platform.select({
-    web: { paddingTop: Spacing.six + Spacing.five, paddingBottom: Spacing.four },
+    web:
+      width < 560
+        ? { paddingTop: Spacing.four, paddingBottom: Spacing.six + Spacing.four }
+        : { paddingTop: Spacing.six + Spacing.five, paddingBottom: Spacing.four },
     default: {
       paddingTop: insets.top + Spacing.three,
       paddingBottom: insets.bottom + BottomTabInset + Spacing.three,
@@ -34,7 +40,11 @@ export function ScreenHeader({
     <View style={styles.header}>
       <View style={styles.brandRow}>
         <Image source={require('@/assets/images/brand/horse-mark.png')} style={styles.mark} contentFit="contain" />
-        <ThemedText type="overline">{overline}</ThemedText>
+        <ThemedText type="overline" style={styles.flex}>
+          {overline}
+        </ThemedText>
+        {/* Stikalo teme desno zgoraj, kot v glavi spletnega dela */}
+        <ThemeToggle />
       </View>
       <View style={styles.titleRow}>
         <ThemedText type="subtitle" style={styles.headerTitle}>
@@ -80,6 +90,7 @@ export const screenStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   header: { gap: Spacing.one, marginBottom: Spacing.two },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  flex: { flex: 1 },
   mark: { width: 26, height: 25 },
   titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.three },
   headerTitle: { flexShrink: 1 },

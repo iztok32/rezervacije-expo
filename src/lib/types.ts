@@ -57,6 +57,8 @@ export type Reservation = {
     name: string;
     start_time: string | null; // HH:mm
     end_time: string | null;
+    // Imena učiteljev termina (starejši strežnik jih ne pošlje)
+    teachers?: string[];
   } | null;
   horse: { id: number; name: string } | null;
   can_cancel: boolean;
@@ -207,4 +209,41 @@ export type MemberDetailResponse = {
   appointment_types: { id: number; name: string }[];
   coupon_types: { id: number; name: string }[];
   can: { edit: boolean; create_coupons: boolean };
+};
+
+/** Povzetek za zavihek »Domov« (GET /home). */
+export type HomeSummary = {
+  coupon_balances: { id: number; name: string; balance: number }[];
+  coupons_available: number;
+  upcoming_count: number;
+  unread_notifications: number;
+  news: { id: number; title: string; text: string; published_at: string | null } | null;
+};
+
+/** Obvestilo v nabiralniku (GET /notifications). */
+export type InboxNotification = {
+  id: number;
+  sender: string;
+  subject: string | null;
+  message: string | null;
+  read_at: string | null;
+  created_at: string | null;
+};
+
+export type InboxResponse = {
+  data: InboxNotification[];
+  meta: { current_page: number; last_page: number; total: number; unread: number };
+};
+
+/** Ponudba za nakup kuponov (GET /purchase/catalog) — cene v evrih. */
+export type PurchaseCatalog = {
+  coupon_types: { id: number; name: string; price: number }[];
+  coupon_packages: { id: number; coupon_type_id: number; name: string; quantity: number; price: number }[];
+};
+
+/** Odprt nakup (POST /purchase/checkout): enkratna povezava za plačilo na spletu. */
+export type CheckoutResponse = {
+  url: string;
+  total_cents: number;
+  expires_at: string;
 };
