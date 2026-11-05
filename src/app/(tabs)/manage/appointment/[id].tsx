@@ -1,14 +1,14 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet } from 'react-native';
 
-import { Button } from '@/components/button';
 import { DaysField, fieldErrors, FormCard, SelectField, TextField, ToggleRow, type FieldErrors } from '@/components/form';
+import { HeroEmpty, HeroPrimaryButton, HeroScreen, HeroSecondaryButton } from '@/components/hero-screen';
 import { Notice } from '@/components/notice';
 import { MultiPickerSheet, PickerSheet } from '@/components/picker-sheet';
-import { CenteredState, screenStyles, useContentPadding } from '@/components/screen';
-import { goBack, SubHeader } from '@/components/sheet';
-import { ThemedView } from '@/components/themed-view';
+import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { goBack } from '@/lib/navigation';
 import { useApi } from '@/hooks/use-api';
 import { api, errorMessage } from '@/lib/api';
 import { useConnectivity } from '@/lib/connectivity';
@@ -79,37 +79,32 @@ export default function AppointmentFormScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { isOnline } = useConnectivity();
   const { data, error, loading } = useApi<AppointmentsResponse>(isOnline ? '/appointments' : null);
-  const padding = useContentPadding();
+  const theme = useTheme();
   const isNew = id === 'new';
   const existing = data?.data.find((a) => String(a.id) === id);
 
-  if (!isOnline) return <Shell padding={padding} title="Termin"><CenteredState message="Urejanje je na voljo samo s povezavo." /></Shell>;
-  if (loading || error || !data) return <Shell padding={padding} title="Termin"><CenteredState loading={loading} message={error ?? undefined} /></Shell>;
-  if (!isNew && !existing) return <Shell padding={padding} title="Termin"><CenteredState message="Termin ne obstaja (več)." /></Shell>;
+  if (!isOnline || !data || (!isNew && !existing)) {
+    return (
+      <HeroScreen overline="Termini" title={isNew ? 'Nov termin' : 'Termin'} back="/manage/appointments">
+        {!isOnline ? (
+          <HeroEmpty icon={{ ios: 'wifi.slash', md: 'wifi_off' }} title="Brez povezave" text="Urejanje je na voljo samo s povezavo." />
+        ) : loading ? (
+          <ActivityIndicator color={theme.primary} style={styles.loading} />
+        ) : (
+          <HeroEmpty
+            icon={{ ios: 'calendar', md: 'calendar_month' }}
+            title={error ? 'Napaka pri nalaganju' : 'Termin ne obstaja (več)'}
+            text={error ?? 'Vrni se na seznam terminov.'}
+          />
+        )}
+      </HeroScreen>
+    );
+  }
 
-  return <AppointmentForm key={id} data={data} existing={existing ?? null} padding={padding} />;
+  return <AppointmentForm key={id} data={data} existing={existing ?? null} />;
 }
 
-function Shell({ padding, title, children }: { padding: object; title: string; children: React.ReactNode }) {
-  return (
-    <ThemedView style={styles.container}>
-      <ScrollView contentContainerStyle={[screenStyles.content, padding]}>
-        <SubHeader title={title} back="/manage/appointments" />
-        {children}
-      </ScrollView>
-    </ThemedView>
-  );
-}
-
-function AppointmentForm({
-  data,
-  existing,
-  padding,
-}: {
-  data: AppointmentsResponse;
-  existing: Appointment | null;
-  padding: object;
-}) {
+function AppointmentForm({ data, existing }: { data: AppointmentsResponse; existing: Appointment | null }) {
   const { isOnline } = useConnectivity();
   const [form, setForm] = useState<Form>(existing ? toForm(existing) : EMPTY);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -199,10 +194,8 @@ function AppointmentForm({
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
-        <ScrollView contentContainerStyle={[screenStyles.content, padding]} keyboardShouldPersistTaps="handled">
-          <SubHeader title={existing ? 'Uredi termin' : 'Nov termin'} back="/manage/appointments" />
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+      <HeroScreen overline={existing ? existing.name : 'Termini'} title={existing ? 'Uredi termin' : 'Nov termin'} back="/manage/appointments">
           {message && <Notice tone="danger" text={message} />}
 
           <FormCard>
@@ -266,12 +259,25 @@ function AppointmentForm({
             />
           </FormCard>
 
-          {canSave && <Button title="Shrani" onPress={save} loading={busy === 'save'} disabled={!isOnline || busy !== null} />}
-          {existing && data.can.delete && (
-            <Button title="Izbriši termin" variant="danger" onPress={remove} loading={busy === 'delete'} disabled={!isOnline || busy !== null} />
+          {canSave && (
+            <HeroPrimaryButton
+              title="Shrani"
+              icon={{ ios: 'checkmark', md: 'check' }}
+              onPress={save}
+              loading={busy === 'save'}
+              disabled={!isOnline || busy !== null}
+            />
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          {existing && data.can.delete && (
+            <HeroSecondaryButton
+              title="Izbriši termin"
+              icon={{ ios: 'trash', md: 'delete' }}
+              danger
+              onPress={remove}
+              loading={busy === 'delete'}
+              disabled={!isOnline || busy !== null}
+            />
+          )}
 
       {picker === 'type' && (
         <PickerSheet
@@ -326,10 +332,12 @@ function AppointmentForm({
           onClose={() => setPicker(null)}
         />
       )}
-    </ThemedView>
+      </HeroScreen>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  loading: { paddingVertical: Spacing.five },
 });

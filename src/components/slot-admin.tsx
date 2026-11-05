@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { Button } from '@/components/button';
+import { HeroAvatar, HeroChipButton, HeroSectionLabel, HeroSeparator, HeroTileHeader } from '@/components/hero-parts';
+import { HeroPrimaryButton, HeroSecondaryButton, HeroTile, heroStyles } from '@/components/hero-screen';
+import { Icon } from '@/components/icon';
 import { Notice } from '@/components/notice';
 import { PickerSheet, type PickerItem } from '@/components/picker-sheet';
 import type { RunAction } from '@/components/slot-sheet';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { FontFamily, Spacing } from '@/constants/theme';
 import { useMemberSearch } from '@/hooks/use-member-search';
 import { useTheme } from '@/hooks/use-theme';
@@ -49,6 +50,7 @@ export function SlotAdmin({
   busy: string | null;
   run: RunAction;
 }) {
+  const theme = useTheme();
   const { user } = useSession();
   const { isOnline } = useConnectivity();
   const caps = calendar.capabilities;
@@ -119,63 +121,77 @@ export function SlotAdmin({
             onDone={() => setMember(null)}
           />
         ) : (
-          <Button title="+ Dodaj člana na termin" onPress={() => setMemberPicker('reserve')} disabled={disabled} />
+          <HeroPrimaryButton
+            title="Dodaj člana na termin"
+            icon={{ ios: 'person.badge.plus', md: 'person_add' }}
+            onPress={() => setMemberPicker('reserve')}
+            disabled={disabled}
+          />
         ))}
 
       {/* ── Udeleženci ── */}
       <View style={styles.section}>
-        <ThemedText type="smallBold">
-          Prijavljeni ({slot.participants.length}
-          {slot.capacity ? `/${slot.capacity}` : ''})
-        </ThemedText>
-        {slot.participants.length === 0 && (
-          <ThemedText type="small" themeColor="textSecondary">
-            Še nihče.
-          </ThemedText>
-        )}
-        {slot.participants.map((p) => (
-          <ParticipantRow
-            key={p.reservation_id}
-            participant={p}
-            canAssignHorse={!!caps?.assign_horses}
-            canCancel={canDelete && !!p.can_cancel}
-            busy={busy}
-            disabled={disabled}
-            onHorse={() => setHorseFor(p)}
-            onCancel={() => cancel(p)}
-          />
-        ))}
+        <HeroSectionLabel>{`Prijavljeni (${slot.participants.length}${slot.capacity ? `/${slot.capacity}` : ''})`}</HeroSectionLabel>
+        <HeroTile style={styles.list}>
+          {slot.participants.length === 0 ? (
+            <ThemedText themeColor="textSecondary" style={[heroStyles.body, styles.empty]}>
+              Še nihče.
+            </ThemedText>
+          ) : (
+            slot.participants.map((p, i) => (
+              <View key={p.reservation_id}>
+                {i > 0 && <HeroSeparator inset={60} />}
+                <ParticipantRow
+                  participant={p}
+                  canAssignHorse={!!caps?.assign_horses}
+                  canCancel={canDelete && !!p.can_cancel}
+                  busy={busy}
+                  disabled={disabled}
+                  onHorse={() => setHorseFor(p)}
+                  onCancel={() => cancel(p)}
+                />
+              </View>
+            ))
+          )}
+        </HeroTile>
       </View>
 
       {/* ── Čakalna vrsta (admin) ── */}
       {caps?.manage_waiting_list && (slot.waiting_list.entries?.length || slot.can_add_to_waiting_list) ? (
         <View style={styles.section}>
-          <ThemedText type="smallBold">Čakalna vrsta ({slot.waiting_list.count})</ThemedText>
-          {slot.waiting_list.entries?.map((w) => (
-            <ThemedView key={w.id} type="backgroundElement" style={styles.row}>
-              <View style={styles.rowText}>
-                <ThemedText type="small">
-                  #{w.position} {w.name}
-                </ThemedText>
-                {w.status === 'notified' && (
-                  <ThemedText type="small" themeColor="textSecondary">
-                    obvestilo o prostem mestu je poslano
-                  </ThemedText>
-                )}
-              </View>
-              <SmallButton
-                label="Odstrani"
-                tone="danger"
-                onPress={() => removeFromWaitingList(w.id, w.name)}
-                disabled={disabled}
-                loading={busy === `waiting-${w.id}`}
-              />
-            </ThemedView>
-          ))}
+          <HeroSectionLabel>{`Čakalna vrsta (${slot.waiting_list.count})`}</HeroSectionLabel>
+          {!!slot.waiting_list.entries?.length && (
+            <HeroTile style={styles.list}>
+              {slot.waiting_list.entries.map((w, i) => (
+                <View key={w.id}>
+                  {i > 0 && <HeroSeparator inset={60} />}
+                  <View style={[styles.row, styles.padded]}>
+                    <View style={[styles.position, { backgroundColor: theme.primarySoft }]}>
+                      <ThemedText style={[styles.positionText, { color: theme.primary }]}>#{w.position}</ThemedText>
+                    </View>
+                    <View style={styles.rowText}>
+                      <ThemedText style={styles.name} numberOfLines={1}>
+                        {w.name}
+                      </ThemedText>
+                      {w.status === 'notified' && (
+                        <ThemedText style={[heroStyles.meta, { color: theme.success }]}>obvestilo o prostem mestu je poslano</ThemedText>
+                      )}
+                    </View>
+                    <HeroChipButton
+                      label={busy === `waiting-${w.id}` ? '…' : 'Odstrani'}
+                      tone="danger"
+                      onPress={() => removeFromWaitingList(w.id, w.name)}
+                      disabled={disabled}
+                    />
+                  </View>
+                </View>
+              ))}
+            </HeroTile>
+          )}
           {slot.can_add_to_waiting_list && (
-            <Button
-              title="+ Dodaj člana v čakalno vrsto"
-              variant="secondary"
+            <HeroSecondaryButton
+              title="Dodaj člana v čakalno vrsto"
+              icon={{ ios: 'person.badge.plus', md: 'person_add' }}
               onPress={() => setMemberPicker('waiting')}
               loading={busy === 'waiting-add'}
               disabled={disabled}
@@ -236,50 +252,59 @@ function ParticipantRow({
 }) {
   const theme = useTheme();
   return (
-    <ThemedView type="backgroundElement" style={styles.participant}>
-      <ThemedText type="smallBold" style={p.is_me && { color: theme.primary }}>
-        {p.name}
-        {p.is_me ? ' (jaz)' : ''}
-      </ThemedText>
-      {p.notes && <ThemedText type="small">Opomba: {p.notes}</ThemedText>}
-      {p.created_by && (
-        <ThemedText type="small" themeColor="textSecondary">
-          Vnos: {p.created_by}
+    <View style={styles.participant}>
+      <View style={styles.row}>
+        <HeroAvatar name={p.name} highlight={p.is_me} />
+        <View style={styles.rowText}>
+          <ThemedText style={[styles.name, p.is_me && { color: theme.primary }]} numberOfLines={1}>
+            {p.name}
+            {p.is_me ? ' (jaz)' : ''}
+          </ThemedText>
+          {p.created_by && (
+            <ThemedText themeColor="textSecondary" style={heroStyles.meta}>
+              Vnos: {p.created_by}
+            </ThemedText>
+          )}
+        </View>
+      </View>
+      {p.notes && (
+        <ThemedText themeColor="textSecondary" style={[heroStyles.body, styles.indent]}>
+          {p.notes}
         </ThemedText>
       )}
-      <View style={styles.actions}>
+      <View style={[styles.actions, styles.indent]}>
         {canAssignHorse ? (
-          <Pressable
+          <HeroChipButton
+            label={busy === `horse-${p.reservation_id}` ? 'Shranjujem…' : `Konj: ${p.horse ?? 'ni dodeljen'}`}
+            icon={{ ios: 'chevron.down', md: 'expand_more' }}
+            tone={p.horse ? 'default' : 'warning'}
             onPress={onHorse}
             disabled={disabled}
-            accessibilityRole="button"
-            style={[styles.horseButton, { borderColor: p.horse ? theme.backgroundSelected : theme.warning }]}>
-            <ThemedText type="small" style={!p.horse && { color: theme.warning }}>
-              {busy === `horse-${p.reservation_id}` ? 'Shranjujem…' : `Konj: ${p.horse ?? 'ni dodeljen'} ▾`}
-            </ThemedText>
-          </Pressable>
+          />
         ) : (
-          <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-            Konj: {p.horse ?? '—'}
-          </ThemedText>
+          <View style={[styles.horseChip, { backgroundColor: p.horse ? theme.goldSoft : theme.backgroundSelected }]}>
+            <ThemedText style={[styles.horseChipText, { color: p.horse ? theme.gold : theme.textSecondary }]}>
+              Konj: {p.horse ?? '—'}
+            </ThemedText>
+          </View>
         )}
         {canCancel ? (
-          <SmallButton
-            label="Odjavi"
+          <HeroChipButton
+            label={busy === `cancel-${p.reservation_id}` ? '…' : 'Odjavi'}
+            icon={{ ios: 'xmark.circle', md: 'cancel' }}
             tone="danger"
             onPress={onCancel}
             disabled={disabled}
-            loading={busy === `cancel-${p.reservation_id}`}
           />
         ) : (
           !p.can_cancel && (
-            <ThemedText type="small" themeColor="textSecondary">
+            <ThemedText themeColor="textSecondary" style={heroStyles.meta}>
               rok za odjavo je potekel
             </ThemedText>
           )
         )}
       </View>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -350,37 +375,44 @@ function MemberBooking({
   }
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      <View style={styles.actions}>
-        <ThemedText type="smallBold" style={styles.flex}>
-          Rezervacija za: {member.name}
+    <HeroTile style={styles.card}>
+      <HeroTileHeader icon={{ ios: 'person.badge.plus', md: 'person_add' }} label="Rezervacija za člana" />
+      <View style={styles.row}>
+        <HeroAvatar name={member.name} highlight />
+        <ThemedText style={[styles.name, styles.rowText]} numberOfLines={1}>
+          {member.name}
         </ThemedText>
-        <Pressable onPress={onChangeMember} hitSlop={8} accessibilityRole="button">
-          <ThemedText type="linkPrimary">Zamenjaj</ThemedText>
-        </Pressable>
-        <Pressable onPress={onDone} hitSlop={8} accessibilityRole="button">
-          <ThemedText type="linkPrimary">Prekliči</ThemedText>
-        </Pressable>
+        <HeroChipButton label="Zamenjaj" onPress={onChangeMember} />
+        <HeroChipButton label="Prekliči" onPress={onDone} />
       </View>
 
       {canPickHorse && calendar.horses.length > 0 && (
-        <Pressable
-          onPress={() => setHorsePicker(true)}
-          accessibilityRole="button"
-          style={[styles.horseButton, { borderColor: theme.backgroundSelected, alignSelf: 'flex-start' }]}>
-          <ThemedText type="small">Konj: {horseName ?? 'brez izbire'} ▾</ThemedText>
-        </Pressable>
+        <View style={styles.field}>
+          <ThemedText style={styles.fieldLabel}>Konj</ThemedText>
+          <Pressable
+            onPress={() => setHorsePicker(true)}
+            accessibilityRole="button"
+            accessibilityLabel={`Konj: ${horseName ?? 'brez izbire'}`}
+            style={[styles.select, { backgroundColor: theme.background, borderColor: theme.border }]}>
+            <ThemedText style={[styles.rowText, styles.selectText]}>{horseName ?? 'Brez izbire'}</ThemedText>
+            <Icon ios="chevron.down" md="expand_more" size={18} color={theme.textSecondary} />
+          </Pressable>
+        </View>
       )}
 
-      <TextInput
-        value={notes}
-        onChangeText={setNotes}
-        maxLength={NOTES_MAX}
-        multiline
-        placeholder="Opomba (neobvezno)…"
-        placeholderTextColor={theme.textSecondary}
-        style={[styles.input, { color: theme.text, backgroundColor: theme.background }]}
-      />
+      <View style={styles.field}>
+        <ThemedText style={styles.fieldLabel}>Opomba (neobvezno)</ThemedText>
+        <TextInput
+          value={notes}
+          onChangeText={setNotes}
+          maxLength={NOTES_MAX}
+          multiline
+          accessibilityLabel="Opomba"
+          placeholder="Dodatne informacije…"
+          placeholderTextColor={theme.textSecondary}
+          style={[styles.input, { color: theme.text, backgroundColor: theme.background, borderColor: theme.border }]}
+        />
+      </View>
 
       {slot.coupon_type &&
         (missingCoupon ? (
@@ -393,13 +425,17 @@ function MemberBooking({
             }
           />
         ) : (
-          <ThemedText type="small" themeColor="textSecondary">
-            Porabi se 1 kupon »{slot.coupon_type.name}« (stanje člana: {balance}).
-          </ThemedText>
+          <View style={[styles.couponBox, { backgroundColor: theme.successSoft }]}>
+            <Icon ios="ticket" md="confirmation_number" size={20} color={theme.success} />
+            <ThemedText style={[heroStyles.body, styles.rowText]}>
+              Porabi se 1 kupon »{slot.coupon_type.name}« · stanje člana: {balance}
+            </ThemedText>
+          </View>
         ))}
 
-      <Button
+      <HeroPrimaryButton
         title="Rezerviraj za člana"
+        icon={{ ios: 'checkmark', md: 'check' }}
         onPress={submit}
         loading={busy === 'reserve-member'}
         disabled={!isOnline || busy !== null || (missingCoupon && !isAdmin)}
@@ -422,75 +458,52 @@ function MemberBooking({
           searchPlaceholder="Išči konja…"
         />
       )}
-    </ThemedView>
-  );
-}
-
-function SmallButton({
-  label,
-  tone,
-  onPress,
-  disabled,
-  loading,
-}: {
-  label: string;
-  tone: 'danger' | 'primary';
-  onPress: () => void;
-  disabled?: boolean;
-  loading?: boolean;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || loading}
-      hitSlop={6}
-      accessibilityRole="button"
-      style={({ pressed }) => [styles.smallButton, { borderColor: theme[tone], opacity: disabled ? 0.5 : pressed ? 0.7 : 1 }]}>
-      <ThemedText type="small" style={{ color: theme[tone] }}>
-        {loading ? '…' : label}
-      </ThemedText>
-    </Pressable>
+    </HeroTile>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  section: { gap: Spacing.two },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.two },
-  participant: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.one },
-  row: {
-    borderRadius: Spacing.three,
-    padding: Spacing.three,
+  section: { gap: 10 },
+  list: { padding: Spacing.one },
+  empty: { padding: Spacing.three - Spacing.one },
+  card: { gap: Spacing.three - Spacing.one },
+  participant: { gap: Spacing.two, paddingHorizontal: Spacing.three - Spacing.one, paddingVertical: Spacing.three - Spacing.one },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - Spacing.one },
+  padded: { paddingHorizontal: Spacing.three - Spacing.one, paddingVertical: Spacing.two + Spacing.half },
+  rowText: { flex: 1, gap: 2 },
+  name: { fontSize: 15, lineHeight: 20, fontWeight: 700 },
+  indent: { marginLeft: 48 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
+  horseChip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  horseChipText: { fontSize: 12, lineHeight: 16, fontWeight: 700 },
+  position: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  positionText: { fontSize: 13, lineHeight: 16, fontWeight: 800 },
+  field: { gap: 6 },
+  fieldLabel: { fontSize: 13, lineHeight: 18, fontWeight: 700 },
+  select: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.two,
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingHorizontal: Spacing.three - Spacing.one,
   },
-  rowText: { flex: 1, gap: Spacing.half },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, flexWrap: 'wrap' },
-  horseButton: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    minHeight: 40,
-    justifyContent: 'center',
-  },
-  smallButton: {
-    borderWidth: 1,
-    borderRadius: Spacing.two,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    minHeight: 40,
-    justifyContent: 'center',
-  },
+  selectText: { fontSize: 15, lineHeight: 20, fontWeight: 600 },
   input: {
-    borderRadius: Spacing.two,
-    padding: Spacing.two,
-    minHeight: 60,
-    fontSize: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    padding: Spacing.three - Spacing.one,
+    minHeight: 72,
+    fontSize: 15,
     fontFamily: FontFamily.medium,
     textAlignVertical: 'top',
+  },
+  couponBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - Spacing.one,
+    padding: Spacing.three - Spacing.one,
+    borderRadius: 14,
   },
 });

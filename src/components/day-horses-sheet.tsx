@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
+import { HeroAvatar, HeroSectionLabel, HeroSeparator } from '@/components/hero-parts';
+import { HeroEmpty, HeroTile } from '@/components/hero-screen';
+import { Icon } from '@/components/icon';
 import { Notice } from '@/components/notice';
 import { PickerSheet } from '@/components/picker-sheet';
+import { Sheet } from '@/components/sheet';
 import { horseItems } from '@/components/slot-admin';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { api, errorMessage } from '@/lib/api';
 import { useConnectivity } from '@/lib/connectivity';
@@ -33,6 +35,7 @@ export function DayHorsesSheet({
 
   const slots = day.slots.filter((s) => s.participants.length > 0);
   const missing = slots.reduce((n, s) => n + s.participants.filter((p) => !p.horse).length, 0);
+  const date = formatDate(day.date, { weekday: 'long', day: 'numeric', month: 'long' });
 
   async function assign(horseId: number | null) {
     const target = editing;
@@ -51,62 +54,45 @@ export function DayHorsesSheet({
   }
 
   return (
-    <Modal
-      visible
-      animationType="slide"
-      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
-      onRequestClose={onClose}>
-      <ThemedView style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-          <View style={styles.header}>
-            <View style={styles.flex}>
-              <ThemedText type="smallBold" style={styles.title}>
-                Konji za dan
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {formatDate(day.date, { weekday: 'long', day: 'numeric', month: 'long' })}
-                {missing > 0 ? ` · brez konja: ${missing}` : ' · vsi imajo konja'}
-              </ThemedText>
-            </View>
-            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button">
-              <ThemedText type="linkPrimary">Zapri</ThemedText>
-            </Pressable>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.content}>
-            {error && <Notice tone="danger" text={error} />}
-            {!isOnline && <Notice tone="warning" text="Brez povezave s strežnikom — spremembe niso mogoče." />}
-            {slots.length === 0 && (
-              <ThemedText themeColor="textSecondary">Ta dan ni rezervacij.</ThemedText>
-            )}
-            {slots.map((slot) => (
-              <View key={slot.appointment_id} style={styles.section}>
-                <ThemedText type="smallBold">
-                  {slot.name} · {formatTimeRange(slot.start_time, slot.end_time)}
-                </ThemedText>
-                {slot.participants.map((p) => (
-                  <Pressable
-                    key={p.reservation_id}
-                    disabled={!isOnline || busyId !== null}
-                    onPress={() => setEditing({ slot, participant: p })}
-                    accessibilityRole="button"
-                    accessibilityHint="Izberi konja"
-                    style={({ pressed }) => [pressed && { opacity: 0.7 }]}>
-                    <ThemedView type="backgroundElement" style={styles.row}>
-                      <ThemedText type="small" style={styles.flex}>
-                        {p.name}
-                      </ThemedText>
-                      <ThemedText type="smallBold" style={{ color: p.horse ? theme.text : theme.warning }}>
-                        {busyId === p.reservation_id ? 'Shranjujem…' : `${p.horse ?? 'brez konja'} ▾`}
-                      </ThemedText>
-                    </ThemedView>
-                  </Pressable>
-                ))}
+    <Sheet
+      title="Konji za dan"
+      subtitle={`${date.charAt(0).toUpperCase()}${date.slice(1)} · ${missing > 0 ? `brez konja: ${missing}` : 'vsi imajo konja'}`}
+      onClose={onClose}>
+      {error && <Notice tone="danger" text={error} />}
+      {!isOnline && <Notice tone="warning" text="Brez povezave s strežnikom — spremembe niso mogoče." />}
+      {slots.length === 0 && (
+        <HeroEmpty icon={{ ios: 'calendar', md: 'calendar_month' }} title="Ta dan ni rezervacij" text="Konje dodeliš, ko so na terminih prijavljeni člani." />
+      )}
+      {slots.map((slot) => (
+        <View key={slot.appointment_id} style={styles.section}>
+          <HeroSectionLabel>{`${formatTimeRange(slot.start_time, slot.end_time)} · ${slot.name}`}</HeroSectionLabel>
+          <HeroTile style={styles.list}>
+            {slot.participants.map((p, i) => (
+              <View key={p.reservation_id}>
+                {i > 0 && <HeroSeparator inset={60} />}
+                <Pressable
+                  disabled={!isOnline || busyId !== null}
+                  onPress={() => setEditing({ slot, participant: p })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${p.name}, konj: ${p.horse ?? 'ni dodeljen'}`}
+                  accessibilityHint="Izberi konja"
+                  style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.backgroundSelected }]}>
+                  <HeroAvatar name={p.name} />
+                  <ThemedText style={styles.name} numberOfLines={1}>
+                    {p.name}
+                  </ThemedText>
+                  <View style={[styles.horse, { backgroundColor: p.horse ? theme.goldSoft : theme.warningBackground }]}>
+                    <ThemedText style={[styles.horseText, { color: p.horse ? theme.gold : theme.warning }]} numberOfLines={1}>
+                      {busyId === p.reservation_id ? 'Shranjujem…' : (p.horse ?? 'brez konja')}
+                    </ThemedText>
+                    <Icon ios="chevron.down" md="expand_more" size={14} color={p.horse ? theme.gold : theme.warning} />
+                  </View>
+                </Pressable>
               </View>
             ))}
-          </ScrollView>
-        </SafeAreaView>
-      </ThemedView>
+          </HeroTile>
+        </View>
+      ))}
 
       {editing && (
         <PickerSheet
@@ -118,39 +104,15 @@ export function DayHorsesSheet({
           searchPlaceholder="Išči konja…"
         />
       )}
-    </Modal>
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  header: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    gap: Spacing.two,
-  },
-  title: { fontSize: 18 },
-  content: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: Spacing.three,
-  },
-  section: { gap: Spacing.two },
-  row: {
-    borderRadius: Spacing.three,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    minHeight: 52,
-  },
+  section: { gap: 10 },
+  list: { padding: Spacing.one },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three - Spacing.one, minHeight: 56, paddingHorizontal: Spacing.three - Spacing.one, paddingVertical: Spacing.two, borderRadius: 14 },
+  name: { flex: 1, fontSize: 15, lineHeight: 20, fontWeight: 700 },
+  horse: { flexDirection: 'row', alignItems: 'center', gap: 4, maxWidth: 150, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
+  horseText: { flexShrink: 1, fontSize: 12, lineHeight: 16, fontWeight: 700 },
 });

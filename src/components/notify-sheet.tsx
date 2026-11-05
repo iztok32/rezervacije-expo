@@ -1,13 +1,12 @@
 import { useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Button } from '@/components/button';
 import { fieldErrors, FieldError, FormCard, TextField, type FieldErrors } from '@/components/form';
+import { HeroPrimaryButton, heroStyles } from '@/components/hero-screen';
 import { Notice } from '@/components/notice';
+import { Sheet } from '@/components/sheet';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { api, errorMessage } from '@/lib/api';
 import { useConnectivity } from '@/lib/connectivity';
@@ -40,7 +39,7 @@ export function NotifySheet({
   const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
 
   const date = formatDate(target.date, { weekday: 'long', day: 'numeric', month: 'long' });
-  const title = target.kind === 'slot' ? `${target.name}, ${date}` : `Vsi termini: ${date}`;
+  const what = target.kind === 'slot' ? `${target.name}, ${date}` : `Vsi termini: ${date}`;
 
   async function send() {
     setBusy(true);
@@ -64,95 +63,59 @@ export function NotifySheet({
   }
 
   return (
-    <Modal
-      visible
-      animationType="slide"
-      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
-      onRequestClose={onClose}>
-      <ThemedView style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-          <View style={styles.header}>
-            <View style={styles.flex}>
-              <ThemedText type="smallBold" style={styles.title}>
-                Obvestilo udeležencem
-              </ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                {title} · prejemnikov: {target.recipients}
-              </ThemedText>
-            </View>
-            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button">
-              <ThemedText type="linkPrimary">Zapri</ThemedText>
-            </Pressable>
-          </View>
+    <Sheet title="Obvestilo udeležencem" subtitle={`${what} · prejemnikov: ${target.recipients}`} onClose={onClose}>
+      {result && <Notice tone={result.ok ? 'success' : 'danger'} text={result.text} />}
+      {!isOnline && <Notice tone="warning" text="Brez povezave s strežnikom — pošiljanje ni mogoče." />}
 
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-            {result && <Notice tone={result.ok ? 'success' : 'danger'} text={result.text} />}
-            {!isOnline && <Notice tone="warning" text="Brez povezave s strežnikom — pošiljanje ni mogoče." />}
+      <FormCard title="Kanal">
+        <View style={styles.channels} accessibilityRole="radiogroup">
+          {channels.map((c) => {
+            const on = channel === c;
+            return (
+              <Pressable
+                key={c}
+                onPress={() => setChannel(c)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: on }}
+                aria-checked={on}
+                style={({ pressed }) => [
+                  styles.channel,
+                  { backgroundColor: on ? theme.primary : theme.backgroundSelected },
+                  pressed && heroStyles.pressed,
+                ]}>
+                <ThemedText style={[styles.channelText, { color: on ? theme.onPrimary : theme.text }]}>{CHANNEL_LABELS[c]}</ThemedText>
+              </Pressable>
+            );
+          })}
+        </View>
+        <FieldError text={errors.channel} />
+      </FormCard>
 
-            <FormCard>
-              <View style={styles.channels}>
-                {channels.map((c) => (
-                  <Pressable
-                    key={c}
-                    onPress={() => setChannel(c)}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: channel === c }}
-                    style={[styles.channel, { backgroundColor: channel === c ? theme.primary : theme.background }]}>
-                    <ThemedText type="smallBold" style={channel === c && { color: '#fff' }}>
-                      {CHANNEL_LABELS[c]}
-                    </ThemedText>
-                  </Pressable>
-                ))}
-              </View>
-              <FieldError text={errors.channel} />
+      <FormCard title="Sporočilo">
+        {channel !== 'sms' && <TextField label="Zadeva" value={subject} onChangeText={setSubject} error={errors.subject} />}
+        <TextField
+          label="Besedilo"
+          value={message}
+          onChangeText={setMessage}
+          multiline
+          error={errors.message ?? errors.notification}
+          hint={channel === 'sms' ? `${message.length} znakov` : undefined}
+        />
+      </FormCard>
 
-              {channel !== 'sms' && (
-                <TextField label="Zadeva" value={subject} onChangeText={setSubject} error={errors.subject} />
-              )}
-              <TextField
-                label="Sporočilo"
-                value={message}
-                onChangeText={setMessage}
-                multiline
-                error={errors.message ?? errors.notification}
-                hint={channel === 'sms' ? `${message.length} znakov` : undefined}
-              />
-
-              <Button
-                title={`Pošlji (${CHANNEL_LABELS[channel]})`}
-                onPress={send}
-                loading={busy}
-                disabled={!isOnline || !message.trim() || (channel !== 'sms' && !subject.trim())}
-              />
-            </FormCard>
-          </ScrollView>
-        </SafeAreaView>
-      </ThemedView>
-    </Modal>
+      <HeroPrimaryButton
+        title={`Pošlji (${CHANNEL_LABELS[channel]})`}
+        icon={{ ios: 'paperplane', md: 'send' }}
+        onPress={send}
+        loading={busy}
+        disabled={!isOnline || !message.trim() || (channel !== 'sms' && !subject.trim())}
+      />
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  header: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    gap: Spacing.two,
-  },
-  title: { fontSize: 18 },
-  content: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingBottom: Spacing.five,
-    gap: Spacing.three,
-  },
   channels: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
-  channel: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: Spacing.two, minWidth: 72, alignItems: 'center' },
+  channel: { minHeight: 40, minWidth: 80, paddingHorizontal: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  channelText: { fontSize: 14, lineHeight: 18, fontWeight: 700 },
 });

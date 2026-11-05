@@ -1,17 +1,16 @@
 import { useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
-import { Button } from '@/components/button';
 import { fieldErrors, FormCard, SelectField, TextField, type FieldErrors } from '@/components/form';
+import { HeroChipButton, HeroIconBox, HeroSearch, HeroSectionLabel, HeroSeparator } from '@/components/hero-parts';
+import { HeroEmpty, HeroPrimaryButton, HeroScreen, HeroTile, heroStyles } from '@/components/hero-screen';
 import { Notice } from '@/components/notice';
 import { OfflineBanner } from '@/components/offline-banner';
 import { PickerSheet } from '@/components/picker-sheet';
-import { CenteredState, screenStyles, useContentPadding } from '@/components/screen';
-import { Sheet, SubHeader } from '@/components/sheet';
+import { Sheet } from '@/components/sheet';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { FontFamily, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useApi } from '@/hooks/use-api';
 import { useMemberSearch } from '@/hooks/use-member-search';
 import { useTheme } from '@/hooks/use-theme';
@@ -22,9 +21,9 @@ import { formatDate } from '@/lib/dates';
 import { confirmAction } from '@/lib/dialogs';
 import type { CouponEntry, CouponsResponse, Member } from '@/lib/types';
 
+/** Knjiga kuponov (admin): iskanje po članu, ročni vnos nakupa ali porabe, brisanje zapisov. */
 export default function CouponsScreen() {
   const params = useLocalSearchParams<{ user_id?: string; name?: string }>();
-  const padding = useContentPadding();
   const theme = useTheme();
   const { isOnline } = useConnectivity();
   const [input, setInput] = useState('');
@@ -64,90 +63,108 @@ export default function CouponsScreen() {
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={[screenStyles.content, padding]}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} />}
-        keyboardShouldPersistTaps="handled">
-        <SubHeader
-          title={params.name ? `Kuponi: ${params.name}` : 'Kuponi'}
-          right={
-            data?.can.create ? (
-              <Pressable onPress={() => setAdding(true)} hitSlop={8} accessibilityRole="button">
-                <ThemedText type="linkPrimary">+ Vnos</ThemedText>
-              </Pressable>
-            ) : null
-          }
-        />
-        <OfflineBanner />
-        {message && <Notice tone={message.ok ? 'success' : 'danger'} text={message.text} />}
+    <HeroScreen
+      overline={params.name ? 'Knjiga kuponov člana' : 'Knjiga kuponov'}
+      title={params.name ?? 'Vsi člani'}
+      back={params.user_id ? `/manage/member/${params.user_id}` : '/manage'}
+      refreshing={refreshing}
+      onRefresh={isOnline ? refresh : undefined}
+      headerExtra={
+        !params.user_id && data?.can.view_all ? (
+          <HeroSearch value={input} onChangeText={setInput} placeholder="Išči po imenu ali e-pošti člana…" />
+        ) : undefined
+      }>
+      <OfflineBanner />
+      {message && <Notice tone={message.ok ? 'success' : 'danger'} text={message.text} />}
 
-        {!params.user_id && data?.can.view_all && (
-          <TextInput
-            value={input}
-            onChangeText={setInput}
-            placeholder="Išči po imenu ali e-pošti člana…"
-            placeholderTextColor={theme.textSecondary}
-            autoCorrect={false}
-            style={[styles.search, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-          />
-        )}
+      {data?.can.create && (
+        <HeroPrimaryButton title="Ročni vnos kuponov" icon={{ ios: 'plus', md: 'add' }} onPress={() => setAdding(true)} disabled={!isOnline} />
+      )}
 
-        {!isOnline ? (
-          <CenteredState message="Kuponi so na voljo samo s povezavo." />
-        ) : loading || error || !data || data.data.length === 0 ? (
-          <CenteredState loading={loading} message={loading ? undefined : (error ?? 'Ni zapisov.')} />
-        ) : (
-          <>
-            <ThemedText type="small" themeColor="textSecondary">
-              Zapisov: {data.meta.total}
-            </ThemedText>
-            {data.data.map((c) => {
+      {!isOnline ? (
+        <HeroEmpty icon={{ ios: 'wifi.slash', md: 'wifi_off' }} title="Brez povezave" text="Kuponi so na voljo samo s povezavo." />
+      ) : loading && !data ? (
+        <ActivityIndicator color={theme.primary} style={styles.loading} />
+      ) : error && !data ? (
+        <HeroEmpty icon={{ ios: 'ticket', md: 'confirmation_number' }} title="Napaka pri nalaganju" text={error} />
+      ) : !data || data.data.length === 0 ? (
+        <HeroEmpty icon={{ ios: 'ticket', md: 'confirmation_number' }} title="Ni zapisov" text="Za izbrane pogoje v knjigi ni zapisov." />
+      ) : (
+        <View style={styles.section}>
+          <HeroSectionLabel>{`Zapisov: ${data.meta.total}`}</HeroSectionLabel>
+          <HeroTile style={styles.list}>
+            {data.data.map((c, i) => {
               const purchase = c.transaction_type === 'purchase';
               return (
-                <ThemedView key={c.id} type="backgroundElement" style={[screenStyles.card, styles.entry]}>
-                  <View style={styles.flex}>
-                    <ThemedText type="smallBold">{c.user?.name ?? '—'}</ThemedText>
-                    <ThemedText type="small" themeColor="textSecondary">
-                      {c.coupon_type?.name ?? '—'}
-                      {c.created_at ? ` · ${new Date(c.created_at).toLocaleDateString('sl-SI')}` : ''}
-                    </ThemedText>
-                    {c.reservation && (
-                      <ThemedText type="small" themeColor="textSecondary">
-                        Rezervacija: {c.reservation.appointment ?? '—'}
-                        {c.reservation.date ? `, ${formatDate(c.reservation.date, { day: 'numeric', month: 'numeric', year: 'numeric' })}` : ''}
+                <View key={c.id}>
+                  {i > 0 && <HeroSeparator />}
+                  <View style={styles.row}>
+                    <HeroIconBox
+                      icon={purchase ? { ios: 'plus', md: 'add' } : { ios: 'minus', md: 'remove' }}
+                      tone={purchase ? 'success' : 'danger'}
+                    />
+                    <View style={styles.flex}>
+                      <ThemedText style={styles.name} numberOfLines={1}>
+                        {c.user?.name ?? '—'}
                       </ThemedText>
-                    )}
-                    {c.notes && <ThemedText type="small">Opomba: {c.notes}</ThemedText>}
-                  </View>
-                  <View style={styles.right}>
-                    <ThemedText type="smallBold" style={{ color: purchase ? theme.success : theme.danger }}>
-                      {purchase ? '+' : '−'}
-                      {c.quantity}
-                    </ThemedText>
-                    {data.can.delete && (
-                      <Pressable onPress={() => remove(c)} disabled={!isOnline || busy !== null} hitSlop={8} accessibilityRole="button">
-                        <ThemedText type="small" style={{ color: theme.danger }}>
-                          {busy === c.id ? '…' : 'Izbriši'}
+                      <ThemedText themeColor="textSecondary" style={heroStyles.meta}>
+                        {[purchase ? 'Nakup' : 'Poraba', c.coupon_type?.name, c.created_at && new Date(c.created_at).toLocaleDateString('sl-SI')]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </ThemedText>
+                      {c.reservation && (
+                        <ThemedText themeColor="textSecondary" style={heroStyles.meta}>
+                          Rezervacija: {c.reservation.appointment ?? '—'}
+                          {c.reservation.date ? `, ${formatDate(c.reservation.date, { day: 'numeric', month: 'numeric', year: 'numeric' })}` : ''}
                         </ThemedText>
-                      </Pressable>
-                    )}
+                      )}
+                      {c.notes && (
+                        <ThemedText themeColor="textSecondary" style={[heroStyles.body, styles.notes]}>
+                          {c.notes}
+                        </ThemedText>
+                      )}
+                    </View>
+                    <View style={styles.right}>
+                      <ThemedText style={[styles.qty, { color: purchase ? theme.success : theme.danger }]}>
+                        {purchase ? '+' : '−'}
+                        {c.quantity}
+                      </ThemedText>
+                      {data.can.delete && (
+                        <HeroChipButton
+                          label={busy === c.id ? '…' : 'Izbriši'}
+                          tone="danger"
+                          onPress={() => remove(c)}
+                          disabled={!isOnline || busy !== null}
+                        />
+                      )}
+                    </View>
                   </View>
-                </ThemedView>
+                </View>
               );
             })}
-            {data.meta.last_page > 1 && (
-              <View style={styles.pager}>
-                <Button title="‹" variant="secondary" onPress={() => setPage((p) => p - 1)} disabled={page <= 1} />
-                <ThemedText type="small" style={styles.flexCenter}>
-                  Stran {data.meta.current_page} / {data.meta.last_page}
-                </ThemedText>
-                <Button title="›" variant="secondary" onPress={() => setPage((p) => p + 1)} disabled={page >= data.meta.last_page} />
-              </View>
-            )}
-          </>
-        )}
-      </ScrollView>
+          </HeroTile>
+
+          {data.meta.last_page > 1 && (
+            <View style={styles.pager}>
+              <HeroChipButton
+                label="Prejšnja"
+                icon={{ ios: 'chevron.left', md: 'chevron_left' }}
+                onPress={() => setPage((p) => p - 1)}
+                disabled={page <= 1}
+              />
+              <ThemedText themeColor="textSecondary" style={[heroStyles.meta, styles.pageText]}>
+                Stran {data.meta.current_page} / {data.meta.last_page}
+              </ThemedText>
+              <HeroChipButton
+                label="Naslednja"
+                icon={{ ios: 'chevron.right', md: 'chevron_right' }}
+                onPress={() => setPage((p) => p + 1)}
+                disabled={page >= data.meta.last_page}
+              />
+            </View>
+          )}
+        </View>
+      )}
 
       {adding && data && (
         <EntryForm
@@ -161,7 +178,7 @@ export default function CouponsScreen() {
           }}
         />
       )}
-    </ThemedView>
+    </HeroScreen>
   );
 }
 
@@ -209,9 +226,9 @@ function EntryForm({
   const balance = member?.balances && couponTypeId ? (member.balances[couponTypeId] ?? 0) : null;
 
   return (
-    <Sheet title="Ročni vnos kuponov" onClose={onClose}>
+    <Sheet title="Ročni vnos kuponov" subtitle="Knjiga kuponov" onClose={onClose}>
       {errors._ && <Notice tone="danger" text={errors._} />}
-      <FormCard>
+      <FormCard title="Član in kupon">
         <SelectField label="Član" valueLabel={member?.name || 'Izberi člana…'} onPress={() => setPicker('member')} error={errors.user_id} />
         <SelectField
           label="Tip kupona"
@@ -220,23 +237,34 @@ function EntryForm({
           error={errors.coupon_type_id}
         />
         {balance !== null && (
-          <ThemedText type="small" themeColor="textSecondary">
+          <ThemedText themeColor="textSecondary" style={heroStyles.meta}>
             Trenutno stanje: {balance}
           </ThemedText>
         )}
-        <View style={styles.kinds}>
-          {(['purchase', 'usage'] as const).map((k) => (
-            <Pressable
-              key={k}
-              onPress={() => setKind(k)}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: kind === k }}
-              style={[styles.kind, { backgroundColor: kind === k ? theme.primary : theme.background }]}>
-              <ThemedText type="smallBold" style={kind === k && { color: '#fff' }}>
-                {k === 'purchase' ? '+ Nakup' : '− Poraba'}
-              </ThemedText>
-            </Pressable>
-          ))}
+      </FormCard>
+
+      <FormCard title="Vnos">
+        <View style={styles.kinds} accessibilityRole="radiogroup">
+          {(['purchase', 'usage'] as const).map((k) => {
+            const on = kind === k;
+            return (
+              <Pressable
+                key={k}
+                onPress={() => setKind(k)}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: on }}
+                aria-checked={on}
+                style={({ pressed }) => [
+                  styles.kind,
+                  { backgroundColor: on ? (k === 'purchase' ? theme.success : theme.danger) : theme.backgroundSelected },
+                  pressed && heroStyles.pressed,
+                ]}>
+                <ThemedText style={[styles.kindText, { color: on ? theme.onPrimary : theme.text }]}>
+                  {k === 'purchase' ? '+ Nakup' : '− Poraba'}
+                </ThemedText>
+              </Pressable>
+            );
+          })}
         </View>
         <TextField label="Količina" value={quantity} onChangeText={setQuantity} keyboardType="number-pad" error={errors.quantity} />
         <TextField
@@ -249,8 +277,10 @@ function EntryForm({
           error={errors.notes}
         />
       </FormCard>
-      <Button
+
+      <HeroPrimaryButton
         title="Shrani vnos"
+        icon={{ ios: 'checkmark', md: 'check' }}
         onPress={save}
         loading={busy}
         disabled={!isOnline || !member || !couponTypeId || !/^[1-9]\d*$/.test(quantity)}
@@ -289,13 +319,24 @@ function EntryForm({
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
   flex: { flex: 1 },
-  flexCenter: { flex: 1, textAlign: 'center' },
-  search: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16, fontFamily: FontFamily.medium },
-  entry: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
-  right: { alignItems: 'flex-end', gap: Spacing.one },
-  pager: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  loading: { paddingVertical: Spacing.five },
+  section: { gap: 10 },
+  list: { padding: Spacing.one },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three - Spacing.one,
+    paddingHorizontal: Spacing.three - Spacing.one,
+    paddingVertical: Spacing.three - Spacing.one,
+  },
+  name: { fontSize: 15, lineHeight: 20, fontWeight: 700 },
+  notes: { marginTop: 2 },
+  right: { alignItems: 'flex-end', gap: 6 },
+  qty: { fontSize: 20, lineHeight: 24, fontWeight: 800 },
+  pager: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  pageText: { flex: 1, textAlign: 'center' },
   kinds: { flexDirection: 'row', gap: Spacing.two },
-  kind: { flex: 1, paddingVertical: Spacing.two, borderRadius: Spacing.two, alignItems: 'center' },
+  kind: { flex: 1, minHeight: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  kindText: { fontSize: 14, lineHeight: 18, fontWeight: 700 },
 });

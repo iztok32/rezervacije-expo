@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, Switch, TextInput, View, type KeyboardTypeOptions } from 'react-native';
 
+import { HeroTile, heroStyles } from '@/components/hero-screen';
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { FontFamily, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ApiError } from '@/lib/api';
@@ -15,12 +16,14 @@ export function fieldErrors(e: unknown): FieldErrors {
   return Object.fromEntries(Object.entries(e.errors).map(([field, messages]) => [field, messages[0]]));
 }
 
+/** Ploščica obrazca v slogu »Domov«; naslov je rdeča oznaka razdelka. */
 export function FormCard({ title, children }: { title?: string; children: ReactNode }) {
+  const theme = useTheme();
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
-      {title && <ThemedText type="smallBold">{title}</ThemedText>}
+    <HeroTile style={styles.card}>
+      {title && <ThemedText style={[heroStyles.label, { color: theme.primary }]}>{title}</ThemedText>}
       {children}
-    </ThemedView>
+    </HeroTile>
   );
 }
 
@@ -56,9 +59,7 @@ export function TextField({
   const theme = useTheme();
   return (
     <View style={styles.field}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
-      </ThemedText>
+      <ThemedText style={styles.label}>{label}</ThemedText>
       <TextInput
         accessibilityLabel={label}
         value={value}
@@ -71,7 +72,7 @@ export function TextField({
         style={[
           styles.input,
           multiline && styles.multiline,
-          { color: theme.text, backgroundColor: theme.background, borderColor: error ? theme.danger : 'transparent' },
+          { color: theme.text, backgroundColor: theme.background, borderColor: error ? theme.danger : theme.border },
         ]}
       />
       {hint && !error && (
@@ -99,14 +100,14 @@ export function ToggleRow({
   return (
     <Pressable onPress={() => onValueChange(!value)} style={styles.toggle} accessibilityRole="switch" accessibilityState={{ checked: value }}>
       <View style={styles.flex}>
-        <ThemedText type="small">{label}</ThemedText>
+        <ThemedText style={styles.toggleLabel}>{label}</ThemedText>
         {hint && (
           <ThemedText type="small" themeColor="textSecondary">
             {hint}
           </ThemedText>
         )}
       </View>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: theme.primary }} />
+      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: theme.primary, false: theme.border }} thumbColor="#FFFFFF" />
     </Pressable>
   );
 }
@@ -128,19 +129,17 @@ export function SelectField({
   const theme = useTheme();
   return (
     <View style={styles.field}>
-      <ThemedText type="small" themeColor="textSecondary">
-        {label}
-      </ThemedText>
+      <ThemedText style={styles.label}>{label}</ThemedText>
       <Pressable
         onPress={onPress}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${valueLabel}`}
-        style={[styles.input, styles.select, { backgroundColor: theme.background, borderColor: error ? theme.danger : 'transparent', opacity: disabled ? 0.5 : 1 }]}>
+        style={[styles.input, styles.select, { backgroundColor: theme.background, borderColor: error ? theme.danger : theme.border, opacity: disabled ? 0.5 : 1 }]}>
         <ThemedText style={styles.flex} numberOfLines={2}>
           {valueLabel}
         </ThemedText>
-        <ThemedText themeColor="textSecondary">▾</ThemedText>
+        <Icon ios="chevron.down" md="expand_more" size={18} color={theme.textSecondary} />
       </Pressable>
       <FieldError text={error} />
     </View>
@@ -170,9 +169,7 @@ export function DaysField<T extends Record<string, unknown>>({
   const theme = useTheme();
   return (
     <View style={styles.field}>
-      <ThemedText type="small" themeColor="textSecondary">
-        Dnevi v tednu
-      </ThemedText>
+      <ThemedText style={styles.label}>Dnevi v tednu</ThemedText>
       <View style={styles.days}>
         {DAY_LABELS.map(([key, label]) => {
           const on = !!value[key];
@@ -182,8 +179,9 @@ export function DaysField<T extends Record<string, unknown>>({
               onPress={() => onToggle(key)}
               accessibilityRole="checkbox"
               accessibilityState={{ checked: on }}
-              style={[styles.day, { backgroundColor: on ? theme.primary : theme.background }]}>
-              <ThemedText type="smallBold" style={on && { color: '#fff' }}>
+              aria-checked={on}
+              style={[styles.day, { backgroundColor: on ? theme.primary : theme.backgroundSelected }]}>
+              <ThemedText type="smallBold" style={on && { color: theme.onPrimary }}>
                 {label}
               </ThemedText>
             </Pressable>
@@ -201,20 +199,22 @@ export function dayNames(value: Record<string, unknown>): string {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  card: { borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
-  field: { gap: Spacing.one },
+  card: { gap: Spacing.three },
+  field: { gap: 6 },
+  label: { fontSize: 13, lineHeight: 18, fontWeight: 700 },
   input: {
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    fontSize: 16,
+    borderRadius: 14,
+    borderWidth: 1.5,
+    paddingHorizontal: Spacing.three - Spacing.one,
+    paddingVertical: Spacing.two + Spacing.half,
+    fontSize: 15,
     fontFamily: FontFamily.medium,
-    minHeight: 44,
+    minHeight: 48,
   },
   multiline: { minHeight: 96, textAlignVertical: 'top' },
   select: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  toggle: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 44 },
+  toggle: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, minHeight: 48 },
+  toggleLabel: { fontSize: 15, lineHeight: 20, fontWeight: 700 },
   days: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  day: { minWidth: 48, paddingVertical: Spacing.two, borderRadius: Spacing.two, alignItems: 'center' },
+  day: { minWidth: 48, minHeight: 40, justifyContent: 'center', borderRadius: 12, alignItems: 'center' },
 });

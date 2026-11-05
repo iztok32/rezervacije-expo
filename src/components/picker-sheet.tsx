@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Modal, Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { HeroSearch, HeroSeparator } from '@/components/hero-parts';
+import { HeroPrimaryButton, HeroScreen, HeroTile, heroStyles } from '@/components/hero-screen';
+import { Icon } from '@/components/icon';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { FontFamily, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export type PickerItem<T extends string | number | null> = {
@@ -13,8 +14,22 @@ export type PickerItem<T extends string | number | null> = {
   note?: string;
 };
 
+function Shell({ title, overline, onClose, search, children }: { title: string; overline?: string; onClose: () => void; search: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Modal
+      visible
+      animationType="slide"
+      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
+      onRequestClose={onClose}>
+      <HeroScreen overline={overline} title={title} onClose={onClose} compact headerExtra={search}>
+        {children}
+      </HeroScreen>
+    </Modal>
+  );
+}
+
 /**
- * Izbira s seznama v celozaslonskem oknu (na telefonu bolj pregledno kot spustni meni).
+ * Izbira s seznama v celozaslonskem podoknu (na telefonu bolj pregledno kot spustni meni).
  * Brez onSearch išče lokalno po oznakah; z onSearch iskanje opravi klicatelj (npr. strežnik).
  */
 export function PickerSheet<T extends string | number | null>({
@@ -50,105 +65,48 @@ export function PickerSheet<T extends string | number | null>({
   }
 
   return (
-    <Modal
-      visible
-      animationType="slide"
-      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
-      onRequestClose={onClose}>
-      <ThemedView style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-          <View style={styles.header}>
-            <ThemedText type="smallBold" style={styles.title}>
-              {title}
-            </ThemedText>
-            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button">
-              <ThemedText type="linkPrimary">Zapri</ThemedText>
-            </Pressable>
-          </View>
-          <View style={styles.searchWrap}>
-            <TextInput
-              value={query}
-              onChangeText={changeQuery}
-              placeholder={searchPlaceholder}
-              placeholderTextColor={theme.textSecondary}
-              autoFocus={Platform.OS !== 'web'}
-              autoCorrect={false}
-              style={[styles.search, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-            />
-          </View>
-          {loading && <ActivityIndicator style={styles.loading} />}
-          <FlatList
-            data={visible}
-            keyExtractor={(item) => String(item.value)}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.list}
-            ListEmptyComponent={
-              loading ? undefined : (
-                <ThemedText type="small" themeColor="textSecondary" style={styles.empty}>
-                  {emptyText}
-                </ThemedText>
-              )
-            }
-            renderItem={({ item }) => {
-              const isSelected = item.value === selected;
-              return (
+    <Shell
+      title={title}
+      overline="Izberi"
+      onClose={onClose}
+      search={<HeroSearch value={query} onChangeText={changeQuery} placeholder={searchPlaceholder} autoFocus={Platform.OS !== 'web'} />}>
+      {loading && <ActivityIndicator color={theme.primary} style={styles.loading} />}
+      {!loading && visible.length === 0 ? (
+        <HeroTile>
+          <ThemedText themeColor="textSecondary" style={[heroStyles.body, styles.center]}>
+            {emptyText}
+          </ThemedText>
+        </HeroTile>
+      ) : visible.length > 0 ? (
+        <HeroTile style={styles.list}>
+          {visible.map((item, i) => {
+            const isSelected = item.value === selected;
+            return (
+              <View key={String(item.value)}>
+                {i > 0 && <HeroSeparator inset={Spacing.three} />}
                 <Pressable
                   onPress={() => onSelect(item.value)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
-                  style={({ pressed }) => [
-                    styles.row,
-                    { borderBottomColor: theme.backgroundSelected },
-                    (pressed || isSelected) && { backgroundColor: theme.backgroundElement },
-                  ]}>
+                  style={({ pressed }) => [styles.row, (pressed || isSelected) && { backgroundColor: theme.backgroundSelected }]}>
                   <View style={styles.rowText}>
-                    <ThemedText style={isSelected && { color: theme.primary }}>{item.label}</ThemedText>
+                    <ThemedText style={[styles.rowLabel, isSelected && { color: theme.primary }]}>{item.label}</ThemedText>
                     {item.note && (
-                      <ThemedText type="small" themeColor="textSecondary">
+                      <ThemedText themeColor="textSecondary" style={heroStyles.meta}>
                         {item.note}
                       </ThemedText>
                     )}
                   </View>
-                  {isSelected && <ThemedText style={{ color: theme.primary }}>✓</ThemedText>}
+                  {isSelected && <Icon ios="checkmark" md="check" size={20} color={theme.primary} />}
                 </Pressable>
-              );
-            }}
-          />
-        </SafeAreaView>
-      </ThemedView>
-    </Modal>
+              </View>
+            );
+          })}
+        </HeroTile>
+      ) : null}
+    </Shell>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  header: {
-    width: '100%',
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.two,
-    gap: Spacing.two,
-  },
-  title: { flex: 1, fontSize: 18 },
-  searchWrap: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingHorizontal: Spacing.three },
-  search: { borderRadius: Spacing.two, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16, fontFamily: FontFamily.medium },
-  loading: { marginTop: Spacing.three },
-  list: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', paddingBottom: Spacing.five },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.three,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: Spacing.two,
-    minHeight: 52,
-  },
-  rowText: { flex: 1, gap: Spacing.half },
-  empty: { textAlign: 'center', marginTop: Spacing.four },
-});
 
 /** Izbira več elementov (npr. konji termina) — potrdi se z »Končano«. */
 export function MultiPickerSheet<T extends string | number>({
@@ -178,70 +136,58 @@ export function MultiPickerSheet<T extends string | number>({
   }
 
   return (
-    <Modal
-      visible
-      animationType="slide"
-      presentationStyle={Platform.OS === 'ios' ? 'pageSheet' : undefined}
-      onRequestClose={onClose}>
-      <ThemedView style={styles.flex}>
-        <SafeAreaView style={styles.flex} edges={['top', 'bottom']}>
-          <View style={styles.header}>
-            <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button">
-              <ThemedText type="linkPrimary">Prekliči</ThemedText>
-            </Pressable>
-            <ThemedText type="smallBold" style={[styles.title, { textAlign: 'center' }]}>
-              {title}
-            </ThemedText>
-            <Pressable onPress={() => onDone(values)} hitSlop={12} accessibilityRole="button">
-              <ThemedText type="linkPrimary" style={{ fontWeight: 700 }}>
-                Končano
-              </ThemedText>
-            </Pressable>
-          </View>
-          <View style={styles.searchWrap}>
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Išči…"
-              placeholderTextColor={theme.textSecondary}
-              autoCorrect={false}
-              style={[styles.search, { color: theme.text, backgroundColor: theme.backgroundElement }]}
-            />
-            <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.one }}>
-              Izbranih: {values.length}
-              {hint ? ` · ${hint}` : ''}
-            </ThemedText>
-          </View>
-          <FlatList
-            data={visible}
-            keyExtractor={(item) => String(item.value)}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={styles.list}
-            renderItem={({ item }) => {
-              const on = values.includes(item.value);
-              return (
-                <Pressable
-                  onPress={() => toggle(item.value)}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
-                  style={[styles.row, { borderBottomColor: theme.backgroundSelected }]}>
-                  <View style={styles.rowText}>
-                    <ThemedText style={on && { color: theme.primary }}>{item.label}</ThemedText>
-                    {item.note && (
-                      <ThemedText type="small" themeColor="textSecondary">
-                        {item.note}
-                      </ThemedText>
-                    )}
-                  </View>
-                  <ThemedText style={{ color: on ? theme.primary : theme.textSecondary, fontSize: 20 }}>
-                    {on ? '☑' : '☐'}
-                  </ThemedText>
-                </Pressable>
-              );
-            }}
-          />
-        </SafeAreaView>
-      </ThemedView>
-    </Modal>
+    <Shell
+      title={title}
+      overline={`Izbranih: ${values.length}${hint ? ` · ${hint}` : ''}`}
+      onClose={onClose}
+      search={<HeroSearch value={query} onChangeText={setQuery} placeholder="Išči…" />}>
+      <HeroPrimaryButton title={`Končano (${values.length})`} icon={{ ios: 'checkmark', md: 'check' }} onPress={() => onDone(values)} />
+      <HeroTile style={styles.list}>
+        {visible.map((item, i) => {
+          const on = values.includes(item.value);
+          return (
+            <View key={String(item.value)}>
+              {i > 0 && <HeroSeparator inset={Spacing.three} />}
+              <Pressable
+                onPress={() => toggle(item.value)}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: on }}
+                aria-checked={on}
+                style={({ pressed }) => [styles.row, pressed && { backgroundColor: theme.backgroundSelected }]}>
+                <View style={styles.rowText}>
+                  <ThemedText style={[styles.rowLabel, on && { color: theme.primary }]}>{item.label}</ThemedText>
+                  {item.note && (
+                    <ThemedText themeColor="textSecondary" style={heroStyles.meta}>
+                      {item.note}
+                    </ThemedText>
+                  )}
+                </View>
+                <View style={[styles.check, on ? { backgroundColor: theme.primary, borderColor: theme.primary } : { borderColor: theme.border }]}>
+                  {on && <Icon ios="checkmark" md="check" size={16} color={theme.onPrimary} />}
+                </View>
+              </Pressable>
+            </View>
+          );
+        })}
+      </HeroTile>
+    </Shell>
   );
 }
+
+const styles = StyleSheet.create({
+  center: { textAlign: 'center' },
+  loading: { paddingVertical: Spacing.four },
+  list: { padding: Spacing.one },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.two,
+    minHeight: 52,
+    paddingHorizontal: Spacing.three - Spacing.one,
+    paddingVertical: Spacing.two + Spacing.half,
+    borderRadius: 14,
+  },
+  rowText: { flex: 1, gap: 2 },
+  rowLabel: { fontSize: 15, lineHeight: 20, fontWeight: 700 },
+  check: { width: 24, height: 24, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+});
