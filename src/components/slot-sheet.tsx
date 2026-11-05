@@ -316,7 +316,8 @@ export function SlotSheet({
         )}
 
         {/* ── Poln termin: veriga ali čakalna vrsta ── */}
-        {!syncing && slot.is_full && !slot.is_mine && (
+        {/* Admin ureja čakalno vrsto v razdelku »Čakalna vrsta« spodaj — osebni vpis bi bil odveč */}
+        {!syncing && slot.is_full && !slot.is_mine && (!calendar.capabilities?.manage_waiting_list || slot.chain_free_appointment) && (
           <HeroTile style={styles.card}>
             {slot.chain_free_appointment ? (
               <>
